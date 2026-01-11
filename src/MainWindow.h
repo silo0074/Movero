@@ -49,6 +49,7 @@ private slots:
     void onUpdateProgress(QString file, int percent, double curSpeed, double avgSpeed, QString eta);
     void onError(CopyWorker::FileError err);
     void onFinished();
+    void onConflictNeeded(QString src, QString dest);
 
 protected:
     void closeEvent(QCloseEvent *event) override;

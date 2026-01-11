@@ -6,14 +6,16 @@
 #include <QDateTime>
 #include <memory>
 #include <cstdlib>
+#include <regex>
 
 #include "CopyWorker.h"
 #include "Config.h"
+#include "LogHelper.h"
 
 namespace fs = std::filesystem;
 
 CopyWorker::CopyWorker(const std::vector<std::string>& sources, const std::string& destDir, Mode mode, QObject* parent)
-: QThread(parent), m_sources(sources), m_destDir(destDir), m_mode(mode), m_paused(false), m_cancelled(false) {}
+: QThread(parent), m_sources(sources), m_destDir(destDir), m_mode(mode), m_paused(false), m_cancelled(false), m_applyAll(false) {}
 
 void CopyWorker::pause() {
     m_paused = true;
@@ -30,6 +32,38 @@ void CopyWorker::cancel() {
     resume(); // Break wait if paused
 }
 
+void CopyWorker::resolveConflict(ConflictAction action, bool applyToAll) {
+    QMutexLocker locker(&m_inputMutex);
+    m_userAction = action;
+    m_applyAll = applyToAll;
+    m_inputWait.wakeAll();
+}
+
+static fs::path generateAutoRename(const fs::path& path) {
+    fs::path folder = path.parent_path();
+    fs::path stem = path.stem();
+    fs::path ext = path.extension();
+    
+    // Check if stem ends with (N)
+    std::string stemStr = stem.string();
+    std::regex re(R"(^(.*) \((\d+)\)$)");
+    std::smatch match;
+    
+    int number = 1;
+    std::string baseName = stemStr;
+    
+    if (std::regex_match(stemStr, match, re)) {
+        baseName = match[1].str();
+        number = std::stoi(match[2].str()) + 1;
+    }
+    
+    while (true) {
+        std::string newName = baseName + " (" + std::to_string(number) + ")" + ext.string();
+        fs::path newPath = folder / newName;
+        if (!fs::exists(newPath)) return newPath;
+        number++;
+    }
+}
 
 void CopyWorker::updateProgress(const fs::path& path, qint64 fileRead, qint64 fileSize, 
                                 qint64& lastBytesRead, std::chrono::steady_clock::time_point& lastSampleTime) {
@@ -110,11 +144,11 @@ void CopyWorker::run() {
     
     
     // PHASE 1.5: Verify Available Space
+    uintmax_t safetyMargin = Config::DISK_SPACE_SAFETY_MARGIN; 
     try {
         fs::space_info destSpace = fs::space(m_destDir);
         
         // Add a 50MB safety margin to account for filesystem overhead/metadata
-        uintmax_t safetyMargin = 50 * 1024 * 1024; 
         
         if (destSpace.available < (totalBytesRequired + safetyMargin)) {
             double reqGB = totalBytesRequired / (1024.0 * 1024.0 * 1024.0);
@@ -132,7 +166,7 @@ void CopyWorker::run() {
         emit errorOccurred({"Drive Error", "Could not determine available space on destination."});
         return;
     }
-    
+
     
     // PHASE 2: Execute Tasks
     int totalFiles = tasks.size();
@@ -144,9 +178,57 @@ void CopyWorker::run() {
     m_totalSizeToCopy = totalBytesRequired;
     m_totalWorkBytes = totalBytesRequired * 2; // Copying + Verifying
     
-    for (const auto& task : tasks) {
+    for (auto& task : tasks) {
         if (m_cancelled) break;
         fs::create_directories(task.dest.parent_path());
+
+        // 1. Space Check (Per File)
+        try {
+            uintmax_t fileSize = fs::file_size(task.src);
+            // Check space (add safety margin)
+            if (fs::space(m_destDir).available < (fileSize + safetyMargin)) {
+                emit errorOccurred({QString::fromStdString(task.src.string()), "Not enough disk space"});
+                break;
+            }
+        } catch (...) { /* Ignore space check errors, let write() fail if full */ }
+
+        // 2. Existence Check & Conflict Resolution
+        if (fs::exists(task.dest)) {
+             ConflictAction action = m_savedAction;
+             
+             if (!m_applyAll) {
+                 // Ask User
+                 emit conflictNeeded(QString::fromStdString(task.src.string()), 
+                                     QString::fromStdString(task.dest.string()));
+                 
+                 QMutexLocker locker(&m_inputMutex);
+                 m_inputWait.wait(&m_inputMutex); // Wait for UI
+                 action = m_userAction;
+                 
+                 if (m_applyAll) m_savedAction = action;
+             }
+             
+             if (action == Cancel) {
+                 m_cancelled = true;
+                 break;
+             }
+             else if (action == Skip) {
+                 processed++;
+                 // Adjust totals so progress bar jumps to correct %
+                 uintmax_t fSize = 0;
+                 try { fSize = fs::file_size(task.src); } catch(...) {}
+                 
+                 m_totalWorkBytes -= (fSize * 2); 
+                 m_totalSizeToCopy -= fSize;
+                 
+                 emit totalProgress(processed, totalFiles);
+                 continue;
+             }
+             else if (action == Rename) {
+                 task.dest = generateAutoRename(task.dest);
+             }
+             // If Replace, just proceed (O_TRUNC will handle it)
+        }
 
         // copyFile returns true ONLY if verification succeeds
         if (copyFile(task.src, task.dest)) { // copyFile verifies checksum
@@ -300,19 +382,17 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
         if (fd_out >= 0) close(fd_out);
         
         // Delete the partial file
-        if (!Config::DRY_RUN) {
-            try { fs::remove(dest); } catch(...) {}
-        }
+        LOG(LogLevel::INFO) << "Removing partial file:" << dest.string();
+        LOG(LogLevel::INFO) << "Reason: cancelled =" << m_cancelled 
+        << ", fileSize =" << fileSize << ", totalRead =" << totalRead;
+        try { fs::remove(dest); } catch(...) {}
         return false;
     }
 
     // If we are here, the copy phase finished successfully.
     // Calculate Source Hash
-    uint64_t srcHash = 0;
-    if (!Config::DRY_RUN) {
-        emit statusChanged("Generating Source Hash...");
-        srcHash = XXH64_digest(hashState);
-    }
+    emit statusChanged("Generating Source Hash...");
+    uint64_t srcHash = XXH64_digest(hashState);
     XXH64_freeState(hashState);
     
     if (fd_in >= 0) close(fd_in);
@@ -336,9 +416,7 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
     // Verify Phase (Read from disk)
     if (!verifyFile(dest, srcHash)) {
         // Verification failed or was cancelled during verification
-        if (!Config::DRY_RUN) {
-            try { fs::remove(dest); } catch(...) {}
-        }
+        try { fs::remove(dest); } catch(...) {}
         return false;
     }
     

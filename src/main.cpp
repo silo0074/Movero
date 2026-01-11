@@ -28,20 +28,6 @@ qt6-base-devel qt6-widgets-devel
 // make -j$(nproc)
 
 
-// Would you like me to show you how to add a "Time Scale" (e.g., -10s, -30s, -60s) to the bottom of the graph?
-
-// TODO: on mv delete the source only if checksum ok
-// TODO: Empty Folders: fs::remove(file) only deletes the file. 
-// After a "Move" operation, your source directories will still 
-// exist but will be empty. You should add a cleanup step at the end to fs::remove_all the source directories.
-// TODO: check for disk space at the destination before starting the actual write process.
-// TODO: QThread: Destroyed while thread '' is still running after Cancel
-
-/*
-Since the file logic is now robust, would you like me to help you refine the Speed Calculation logic? 
-Currently, the mbps calculation is based on the startTime of the entire file; for large files, it 
-is often better to use a "sliding window" (the last 2-3 seconds) to show a more accurate real-time speed.
-*/
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);

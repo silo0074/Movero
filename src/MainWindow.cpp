@@ -2,9 +2,12 @@
 #include <QHBoxLayout>
 #include <QPainter>
 #include <QPainterPath>
+#include <QMessageBox>
+#include <QCheckBox>
 
 #include "MainWindow.h"
 #include "Config.h"
+#include "LogHelper.h"
 
 // --- SpeedGraph Implementation ---
 // Initializes members BEFORE constructor body executes
@@ -267,6 +270,7 @@ MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sour
     connect(m_worker, &CopyWorker::totalProgress, [&](int val, int max){ m_totalProgress->setMaximum(max); });
     connect(m_worker, &CopyWorker::errorOccurred, this, &MainWindow::onError);
     connect(m_worker, &CopyWorker::finished, this, &MainWindow::onFinished);
+    connect(m_worker, &CopyWorker::conflictNeeded, this, &MainWindow::onConflictNeeded);
 
     connect(m_pauseBtn, &QPushButton::clicked, this, &MainWindow::onTogglePause);
     connect(m_cancelBtn, &QPushButton::clicked, this, &MainWindow::close);
@@ -290,16 +294,20 @@ MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sour
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
+    LOG(LogLevel::INFO) << "Close event received.";
+
     if (m_worker->isRunning()) {
         // Update UI to show we are stopping
         m_statusActionLabel->setText("Stopping...");
         m_statusLabel->setText("Cleaning up...");
         
         // Signal the thread to stop
+        LOG(LogLevel::INFO) << "Cancelling copy worker.";
         m_worker->cancel();
         
         // Wait for the thread to finish safely. 
         // This ensures the worker cleans up files and exits run() before we destroy it.
+        LOG(LogLevel::INFO) << "Waiting for copy worker to finish.";
         m_worker->wait();
     }
     event->accept();
@@ -348,6 +356,31 @@ void MainWindow::onError(CopyWorker::FileError err) {
     m_errorList->setHidden(false);
     m_errorList->addItem(err.path + ": " + err.errorMsg);
     m_errorList->setStyleSheet("border: 1px solid red;");
+}
+
+void MainWindow::onConflictNeeded(QString src, QString dest) {
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle("File Conflict");
+    msgBox.setText("Destination file already exists:\n" + dest);
+    msgBox.setInformativeText("Source: " + src);
+    msgBox.setIcon(QMessageBox::Question);
+    
+    QPushButton *replaceBtn = msgBox.addButton("Replace", QMessageBox::AcceptRole);
+    QPushButton *skipBtn = msgBox.addButton("Skip", QMessageBox::RejectRole);
+    QPushButton *renameBtn = msgBox.addButton("Rename", QMessageBox::ActionRole);
+    QPushButton *cancelBtn = msgBox.addButton(QMessageBox::Cancel);
+    
+    QCheckBox *cb = new QCheckBox("Do this for all conflicts", &msgBox);
+    msgBox.setCheckBox(cb);
+    
+    msgBox.exec();
+    
+    CopyWorker::ConflictAction action = CopyWorker::Cancel;
+    if (msgBox.clickedButton() == replaceBtn) action = CopyWorker::Replace;
+    else if (msgBox.clickedButton() == skipBtn) action = CopyWorker::Skip;
+    else if (msgBox.clickedButton() == renameBtn) action = CopyWorker::Rename;
+    
+    m_worker->resolveConflict(action, cb->isChecked());
 }
 
 void MainWindow::onFinished() {

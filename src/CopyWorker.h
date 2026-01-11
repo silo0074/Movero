@@ -20,12 +20,20 @@ public:
         QString path;
         QString errorMsg;
     };
+    
+    enum ConflictAction {
+        Replace,
+        Skip,
+        Rename,
+        Cancel
+    };
 
     CopyWorker(const std::vector<std::string>& sources, const std::string& destDir, Mode mode, QObject* parent = nullptr);
 
     void pause();
     void resume();
     void cancel();
+    void resolveConflict(ConflictAction action, bool applyToAll);
 
 signals:
     void progressChanged(QString file, int percent, double curSpeed, double avgSpeed, QString eta);
@@ -33,6 +41,7 @@ signals:
     void totalProgress(int fileCount, int totalFiles);
     void finished();
     void errorOccurred(FileError error);
+    void conflictNeeded(QString src, QString dest);
 
 protected:
     void run() override;
@@ -45,6 +54,13 @@ private:
     QWaitCondition m_pauseCond;
     std::atomic<bool> m_paused;
     std::atomic<bool> m_cancelled;
+    
+    // Conflict Resolution
+    QMutex m_inputMutex;
+    QWaitCondition m_inputWait;
+    ConflictAction m_userAction;
+    bool m_applyAll = false;
+    ConflictAction m_savedAction = Replace;
 
     std::chrono::steady_clock::time_point m_overallStartTime;
     std::chrono::duration<double> m_totalPausedDuration{0};

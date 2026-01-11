@@ -1,5 +1,6 @@
 #pragma once
 #include <QString>
+#include <cstdint>
 
 namespace Config {
     // Defined by CMakeLists
@@ -43,4 +44,6 @@ namespace Config {
     // CPU's L3 cache, which can actually slow down the checksum calculation (XXH64_update).
     inline constexpr size_t BUFFER_SIZE = 8 * 1024 * 1024;
     inline constexpr double SPEED_UPDATE_INTERVAL = 0.05; // 50ms (20Hz)
+    // 50MB default
+    inline constexpr uintmax_t DISK_SPACE_SAFETY_MARGIN = 50 * 1024 * 1024;
 }
