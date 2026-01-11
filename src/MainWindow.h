@@ -6,6 +6,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QTimer>
+#include <QCloseEvent>
 
 #include "CopyWorker.h"
 
@@ -29,6 +30,7 @@ public:
 protected:
     // Override the paint event to custom draw the graph
     void paintEvent(QPaintEvent* event) override;
+
 private:
     std::vector<double> m_history;
     double m_maxSpeed;
@@ -48,6 +50,9 @@ private slots:
     void onError(CopyWorker::FileError err);
     void onFinished();
 
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
 private:
     CopyWorker* m_worker;
     SpeedGraph* m_graph;
@@ -62,4 +67,9 @@ private:
     QTimer* m_graphTimer;      // Manages the steady 100ms graph updates
     double m_smoothedSpeed;    // Holds the EMA (Exponential Moving Average) smoothing filtered speed value
     bool m_isPaused;
+    QString m_currentFile;
+    int m_filePercent;
+    double m_currentSpeed;
+    double m_avgSpeed;
+    QString m_eta;
 };

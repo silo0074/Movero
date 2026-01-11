@@ -4,6 +4,7 @@ project(${PROJECT_NAME} VERSION 1.0.0)
 
 # Pass the version to C++ as a macro
 add_definitions(-DAPP_VERSION="${PROJECT_VERSION}")
+add_definitions(-DAPP_NAME="${PROJECT_NAME}")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

@@ -46,7 +46,7 @@ is often better to use a "sliding window" (the last 2-3 seconds) to show a more 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
-    LOG(LogLevel::INFO) << Config::APP_NAME << "started.";
+    LOG(LogLevel::INFO) << APP_NAME << "started.";
     LOG(LogLevel::INFO) << "Version" << APP_VERSION;
 
     // Arguments: FastCopier [cp|mv]
@@ -55,13 +55,13 @@ int main(int argc, char *argv[]) {
 
     if (mode == "help") {
         cout << "Version " << APP_VERSION << endl;
-        cout << "Usage: " << Config::APP_NAME << " [cp|mv] [dest dir]" << endl;
+        cout << "Usage: " << APP_NAME << " [cp|mv] [dest dir]" << endl;
         return 0;
     }
     
     if ((mode != "cp") && (mode != "mv")) {
         cout << "Incorrect arguments." << endl;
-        cout << "Usage: " << Config::APP_NAME << " [cp|mv] [dest dir]" << endl;
+        cout << "Usage: " << APP_NAME << " [cp|mv] [dest dir]" << endl;
         return 1;
     }
 

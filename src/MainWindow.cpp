@@ -51,93 +51,6 @@ void SpeedGraph::addSpeedPoint(double mbps) {
 }
 
 
-// void SpeedGraph::paintEvent(QPaintEvent*) {
-//     QPainter p(this);
-//     p.setRenderHint(QPainter::Antialiasing);
-
-//     int w = width();
-//     int h = height();
-//     int padding = 20; // Room at the top for the line/label
-//     int bottomMargin = 25; // Extra space for time labels
-//     double step = static_cast<double>(w) / (m_history.size() - 1);
-
-//     // Draw Background Grid
-//     p.setPen(QPen(Qt::gray, 1));
-//     // p.setPen(QPen(QColor(50, 50, 50), 1));
-//     for(int i=0; i<=4; ++i) {
-//         int y = padding + ((h - padding*2) / 4) * i;
-//         p.drawLine(0, y, w, y);
-//     }
-
-//     // Draw the Time Scale (X-Axis Labels)
-//     p.setPen(QPen(QColor(150, 150, 150), 1));
-//     QFont font = p.font();
-//     font.setPointSize(8);
-//     p.setFont(font);
-
-//     // Points per second = 10 (since timer is 100ms)
-//     const int pointsPerSecond = 10;
-
-//     // We want to draw labels at specific intervals (e.g., every 20 seconds)
-//     const int intervalSeconds = 20;
-//     const int pointsPerInterval = pointsPerSecond * intervalSeconds;
-
-//     for (int i = m_history.size() - 1; i >= 0; i -= pointsPerInterval) {
-//         // Calculate X position
-//         double x = i * step;
-
-//         // Calculate how many seconds ago this was
-//         int secondsAgo = (m_history.size() - 1 - i) / pointsPerSecond;
-
-//         if (secondsAgo == 0) continue; // Skip the "now" label to keep it clean
-
-//         QString label = QString("-%1s").arg(secondsAgo);
-
-//         // Draw a small vertical tick mark
-//         p.drawLine(x, h - bottomMargin, x, h - bottomMargin + 5);
-
-//         // Draw the text centered under the tick
-//         float textWidth = p.fontMetrics().horizontalAdvance(label);
-//         p.drawText(x - (textWidth / 2), h - 5, label);
-//     }
-
-//     // Create the Path
-//     QPainterPath path;
-//     path.moveTo(0, h);
-//     for (size_t i = 0; i < m_history.size(); ++i) {
-//         double x = i * step;
-//         // Map speed to Y: 0 speed = height(), max speed = padding
-//         double y = h - ((m_history[i] / m_maxSpeed) * (h - padding*2));
-//         path.lineTo(x, y);
-//     }
-
-//     // Draw Fill (Gradient)
-//     QPainterPath fillPath = path;
-//     QLinearGradient gradient(0, 0, 0, height());
-//     gradient.setColorAt(0, QColor(0, 255, 0, 150)); // Bright green at top
-//     gradient.setColorAt(1, QColor(0, 255, 0, 20));  // Faded green at bottom
-//     p.fillPath(path, gradient);
-//     fillPath.lineTo(w, h);
-//     fillPath.lineTo(0, h);
-//     p.fillPath(fillPath, QColor(0, 255, 0, 60));
-
-//     // Draw Main Speed Line
-//     p.setPen(QPen(QColor(0, 0, 0), 1));
-//     p.drawPath(path);
-
-//     // Draw THE HORIZONTAL LINE (Current Speed)
-//     // We draw this LAST so it is on top of everything
-//     double currentSpeedY = h - ((m_history.back() / m_maxSpeed) * (h - padding*2));
-
-//     p.setPen(QPen(Qt::black, 2, Qt::SolidLine));
-//     p.setOpacity(1.0);
-//     p.drawLine(0, currentSpeedY, w, currentSpeedY);
-
-//     // Optional: Draw a small speed label next to the line
-//     p.drawText(w - 70, currentSpeedY - 5, QString::number(m_history.back(), 'f', 1) + " MB/s");
-// }
-
-
 void SpeedGraph::paintEvent(QPaintEvent*) {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
@@ -170,6 +83,7 @@ void SpeedGraph::paintEvent(QPaintEvent*) {
     
     // 2. Draw Horizontal Grid Lines and Speed Labels
     p.setFont(QFont("Arial", 8));
+
     for(int i = 0; i <= 4; ++i) {
         int y = gridRect.top() + (gridRect.height() / 4) * i;
         
@@ -187,24 +101,71 @@ void SpeedGraph::paintEvent(QPaintEvent*) {
     }
     
     // 3. Draw Time Scale (X-Axis Labels)
-    const int intervalSeconds = 20;
-    const int pointsPerInterval = pointsPerSecond * intervalSeconds;
+    // Calculate total duration based on the actual update frequency of the UI graph
+    double totalSeconds = ((m_history.size() - 1) * Config::UPDATE_INTERVAL_MS) / 1000.0;
+    if (totalSeconds <= 0) totalSeconds = 1.0;
+
+    // Calculate pixels per second based on current window width (Scalable GUI)
+    double pixelsPerSecond = gridRect.width() / totalSeconds;
     
-    for (int i = m_history.size() - 1; i >= 0; i -= pointsPerInterval) {
-        double x = gridRect.left() + (i * step);
-        // int secondsAgo = (m_history.size() - 1 - i) / pointsPerSecond;
-        int secondsAgo = static_cast<int>((m_history.size() - 1 - i) / pointsPerSecond);
+    // Dynamic interval calculation: ensure labels don't overlap (min 60px apart)
+    double minPixelsPerLabel = 60.0;
+    double minInterval = minPixelsPerLabel / pixelsPerSecond;
+
+    // Select a "nice" interval (1s, 2s, 5s, 10s, 15s, 30s, 60s...)
+    int intervalSeconds = 1;
+    int niceIntervals[] = {1, 2, 5, 10, 15, 30, 60, 120, 300};
+    for (int val : niceIntervals) {
+        if (val >= minInterval) {
+            intervalSeconds = val;
+            break;
+        }
+    }
+
+    p.setPen(Qt::gray);
+
+    // Helper lambda to draw a tick and label
+    auto drawTick = [&](double timeVal) {
+        double x = gridRect.right() - (timeVal * pixelsPerSecond);
         
-        if (secondsAgo == 0) continue; 
-        
-        QString timeLabel = QString("-%1s").arg(secondsAgo);
-        
-        p.setPen(Qt::gray);
         // Draw tick
         p.drawLine(x, gridRect.bottom(), x, gridRect.bottom() + 5);
-        // Draw text centered under tick
+
+        // Format Label
+        QString timeLabel;
+        int tInt = static_cast<int>(timeVal + 0.5);
+        
+        if (timeVal < 0.1) timeLabel = "0s";
+        else if (tInt < 60) timeLabel = QString("-%1s").arg(tInt);
+        else {
+            int m = tInt / 60;
+            int s = tInt % 60;
+            if (s == 0) timeLabel = QString("-%1m").arg(m);
+            else timeLabel = QString("-%1m %2s").arg(m).arg(s);
+        }
+
+        // Draw Text
         float textWidth = p.fontMetrics().horizontalAdvance(timeLabel);
-        p.drawText(x - (textWidth / 2), h - 5, timeLabel);
+        double textX = x - (textWidth / 2);
+
+        // Clamp to widget bounds to ensure 0s and Max are visible
+        if (textX + textWidth > w) textX = w - textWidth - 2;
+        if (textX < 0) textX = 2;
+
+        p.drawText(textX, h - 5, timeLabel);
+    };
+
+    // 1. Always draw the Max History label (Leftmost)
+    drawTick(totalSeconds);
+
+    // 2. Draw 0s and intermediates
+    // Stop if we get too close to the Max label (approx 50px clearance) to avoid overlap
+    double leftThreshold = gridRect.left() + 50;
+
+    for (int t = 0; t < static_cast<int>(totalSeconds); t += intervalSeconds) {
+        double x = gridRect.right() - (t * pixelsPerSecond);
+        if (x < leftThreshold) break;
+        drawTick(static_cast<double>(t));
     }
     
     // 4. Create and Draw the Path (Data)
@@ -215,7 +176,6 @@ void SpeedGraph::paintEvent(QPaintEvent*) {
         for (size_t i = 0; i < m_history.size(); ++i) {
             double x = gridRect.left() + (i * step);
             // Map speed to Y: 0 speed = gridRect.bottom(), max = gridRect.top()
-            // double y = gridRect.bottom() - ((m_history[i] / m_maxSpeed) * gridRect.height());
             double y = gridRect.bottom() - ((m_history[i] / effectiveMax) * gridRect.height());
             
             if (!started) {
@@ -309,32 +269,52 @@ MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sour
     connect(m_worker, &CopyWorker::finished, this, &MainWindow::onFinished);
 
     connect(m_pauseBtn, &QPushButton::clicked, this, &MainWindow::onTogglePause);
-    connect(m_cancelBtn, &QPushButton::clicked, [this](){ m_worker->cancel(); close(); });
+    connect(m_cancelBtn, &QPushButton::clicked, this, &MainWindow::close);
 
-    // m_graphTimer = new QTimer(this);
-    // connect(m_graphTimer, &QTimer::timeout, this, [this]() {
-    //     // The graph now rolls at a constant 10Hz regardless of disk latency
-    //     m_graph->addSpeedPoint(m_smoothedSpeed);
+    m_graphTimer = new QTimer(this);
+    connect(m_graphTimer, &QTimer::timeout, this, [this]() {
+        m_statusLabel->setText("File: " + m_currentFile + " AvgSpeed: " + QString::number(m_avgSpeed) + " ETA: " + m_eta);
+        m_fileProgress->setValue(m_filePercent);
+        m_speedLabel->setText(QString::number(m_smoothedSpeed, 'f', 1) + " MB/s");
+
+        // The graph now rolls at a constant 10Hz regardless of disk latency
+        m_graph->addSpeedPoint(m_smoothedSpeed);
         
-    //     // If the worker hasn't sent an update in a while, 
-    //     // we slowly decay the speed so the graph drops to 0
-    //     m_smoothedSpeed *= 0.9; 
-    // });
-    // m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // 10 updates per second
+        // If the worker hasn't sent an update in a while, 
+        // we slowly decay the speed so the graph drops to 0
+        m_smoothedSpeed *= 0.9; 
+    });
+    m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // 10 updates per second
 
     m_worker->start();
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+    if (m_worker->isRunning()) {
+        // Update UI to show we are stopping
+        m_statusActionLabel->setText("Stopping...");
+        m_statusLabel->setText("Cleaning up...");
+        
+        // Signal the thread to stop
+        m_worker->cancel();
+        
+        // Wait for the thread to finish safely. 
+        // This ensures the worker cleans up files and exits run() before we destroy it.
+        m_worker->wait();
+    }
+    event->accept();
 }
 
 void MainWindow::onTogglePause() {
     if (m_isPaused) {
         m_worker->resume();
         m_graph->setPaused(false);
-        // m_graphTimer->start(100); // Restart the graph movement
+        m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // Restart the graph movement
         m_pauseBtn->setText("Pause");
     } else {
         m_worker->pause();
         m_graph->setPaused(true);
-        // m_graphTimer->stop();     // Freeze the graph movement
+        m_graphTimer->stop();     // Freeze the graph movement
         m_pauseBtn->setText("Resume");
     }
     m_isPaused = !m_isPaused;
@@ -342,30 +322,36 @@ void MainWindow::onTogglePause() {
 
 
 void MainWindow::onUpdateProgress(QString file, int percent, double curSpeed, double avgSpeed, QString eta) {
-    m_statusLabel->setText("File: " + file + " AvgSpeed: " + QString::number(avgSpeed) + " ETA: " + eta);
-    m_fileProgress->setValue(percent);
+    m_currentFile = file;
+    m_filePercent = percent;
+    m_currentSpeed = curSpeed;
+    m_avgSpeed = avgSpeed;
+    m_eta = eta;
+
+    // m_statusLabel->setText("File: " + file + " AvgSpeed: " + QString::number(avgSpeed) + " ETA: " + eta);
+    // m_fileProgress->setValue(percent);
 
     if (curSpeed > 0) {
-        // smoothing factor: 0.1 (lower = smoother/slower, higher = jumpier/faster)
-        // m_smoothedSpeed = (m_smoothedSpeed * 0.9) + (curSpeed * 0.1);
+    //     // smoothing factor: 0.1 (lower = smoother/slower, higher = jumpier/faster)
+    //     // m_smoothedSpeed = (m_smoothedSpeed * 0.9) + (curSpeed * 0.1);
         m_smoothedSpeed = (m_smoothedSpeed * 0.5) + (curSpeed * 0.5);
     
-        // Trigger graph update only when fresh data arrives (every 0.5s)
-        m_graph->addSpeedPoint(m_smoothedSpeed);
-        m_speedLabel->setText(QString::number(m_smoothedSpeed, 'f', 1) + " MB/s");
+    //     // Trigger graph update only when fresh data arrives (every 0.5s)
+    //     // m_graph->addSpeedPoint(m_smoothedSpeed);
+    //     m_speedLabel->setText(QString::number(m_smoothedSpeed, 'f', 1) + " MB/s");
     }
 }
 
 
 void MainWindow::onError(CopyWorker::FileError err) {
-    // m_graphTimer->stop(); // Stop the graph
+    m_graphTimer->stop(); // Stop the graph
     m_errorList->setHidden(false);
     m_errorList->addItem(err.path + ": " + err.errorMsg);
     m_errorList->setStyleSheet("border: 1px solid red;");
 }
 
 void MainWindow::onFinished() {
-    // m_graphTimer->stop(); // Stop the graph once finished
+    m_graphTimer->stop(); // Stop the graph once finished
     m_statusLabel->setText("Operation Complete.");
     m_statusActionLabel->setText("Done.");
     m_pauseBtn->setEnabled(false);

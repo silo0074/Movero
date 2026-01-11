@@ -47,14 +47,12 @@ void CopyWorker::updateProgress(const fs::path& path, qint64 fileRead, qint64 fi
 
     // 3. Average Speed & ETA
     std::chrono::duration<double> totalActiveTime = (now - m_overallStartTime) - m_totalPausedDuration;
-    double avgMbps = (m_totalBytesProcessed / (1024.0 * 1024.0)) / (totalActiveTime.count() + 0.001);
-
+    double avgMbps = (m_totalBytesProcessed / (1024.0 * 1024.0)) / (totalActiveTime.count());
     uintmax_t bytesLeft = m_totalWorkBytes - m_totalBytesProcessed;
     QString etaStr = "Calculating...";
 
     if (avgMbps > 0.5) {
         int secondsLeft = static_cast<int>((bytesLeft / (1024.0 * 1024.0)) / avgMbps);
-        
         if (secondsLeft < 60) etaStr = QString("%1s").arg(secondsLeft);
         else etaStr = QString("%1m %2s").arg(secondsLeft / 60).arg(secondsLeft % 60);
     }
@@ -78,7 +76,7 @@ void CopyWorker::run() {
     if (Config::DRY_RUN) {
         // Simulate a 2GB file task
         totalBytesRequired = Config::DRY_RUN_FILE_SIZE; 
-        tasks.push_back({"DRY_RUN_SOURCE", fs::path(m_destDir) / "DRY_RUN_2GB.dat"});
+        tasks.push_back({"DRY_RUN_SOURCE", fs::path(m_destDir) / "DRY_RUN.dat"});
         emit statusChanged("DRY RUN: Generating test file...");
     } else {
         
@@ -145,7 +143,6 @@ void CopyWorker::run() {
     m_totalBytesProcessed = 0;
     m_totalSizeToCopy = totalBytesRequired;
     m_totalWorkBytes = totalBytesRequired * 2; // Copying + Verifying
-    m_overallStartTime = std::chrono::steady_clock::now();
     
     for (const auto& task : tasks) {
         if (m_cancelled) break;
@@ -202,11 +199,9 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
         posix_fadvise(fd_in, 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_NOREUSE);
     }
 
-    // Using O_SYNC to ensure metadata is flushed, but keeping standard I/O for write speed
     int fd_out = open(dest.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    // int fd_out = open(dest.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_SYNC, 0644);
     
-    if ((!Config::DRY_RUN && fd_in < 0) || fd_out < 0) {
+    if ((!Config::DRY_RUN && fd_in < 0) || (fd_out < 0)) {
         emit errorOccurred({QString::fromStdString(src.string()), "Failed to open file"});
         if(fd_in >= 0) close(fd_in);
         if(fd_out >= 0) close(fd_out);
@@ -217,6 +212,7 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
     XXH64_reset(hashState, 0);
 
     // Use aligned_alloc instead of std::vector for maximum performance
+    // See verifyFile() for comments.
     const size_t ALIGNMENT = 4096; // Standard page size
 
     // Allocate memory
@@ -227,12 +223,12 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
     std::unique_ptr<char, decltype(&std::free)> buffer(static_cast<char*>(rawPtr), std::free);
 
     // std::vector<char> buffer(BUFFER_SIZE, 0); // Initialize with zeros
+    
     qint64 totalRead = 0;
     qint64 fileSize = Config::DRY_RUN ? (Config::DRY_RUN_FILE_SIZE) : fs::file_size(src);
     auto startTime = std::chrono::steady_clock::now();
-    ssize_t bytesRead;
-
     auto lastSampleTime = startTime;
+    ssize_t bytesRead;
     qint64 lastBytesRead = 0;
 
     emit statusChanged("Copying..."); // Notify UI
@@ -269,7 +265,14 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
             bytesRead = read(fd_in, buffer.get(), toRead);
         }
 
-        if (bytesRead <= 0) break;
+        if (bytesRead < 0) {
+            emit errorOccurred({QString::fromStdString(src.string()), "Read error"});
+            break;
+        }
+        if (bytesRead == 0) {
+            emit errorOccurred({QString::fromStdString(src.string()), "Unexpected end of file"});
+            break;
+        }
 
         // Calculate Hash on the fly
         XXH64_update(hashState, buffer.get(), bytesRead);
@@ -284,24 +287,43 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
         totalRead += bytesRead;
         m_totalBytesProcessed += bytesRead;
 
-        // Calculate and update speed every 500ms for a smooth, reactive graph
+        // Calculate and update speed
         updateProgress(src, totalRead, fileSize, lastBytesRead, lastSampleTime);
     }
+
+    // --- CLEANUP & CHECK PHASE ---
+    
+    // If cancelled or incomplete, clean up and return
+    if (m_cancelled || totalRead != fileSize) {
+        XXH64_freeState(hashState);
+        if (fd_in >= 0) close(fd_in);
+        if (fd_out >= 0) close(fd_out);
+        
+        // Delete the partial file
+        if (!Config::DRY_RUN) {
+            try { fs::remove(dest); } catch(...) {}
+        }
+        return false;
+    }
+
+    // If we are here, the copy phase finished successfully.
+    // Calculate Source Hash
+    uint64_t srcHash = 0;
+    if (!Config::DRY_RUN) {
+        emit statusChanged("Generating Source Hash...");
+        srcHash = XXH64_digest(hashState);
+    }
+    XXH64_freeState(hashState);
+    
+    if (fd_in >= 0) close(fd_in);
+    
+    // Ensure data is on disk before verification
+    fdatasync(fd_out);
+    close(fd_out);
 
     // Force 100% and reset speed graph after copying
     emit progressChanged(QString::fromStdString(src.filename().string()), 
                         100, 0.0, 0.0, "");
-
-    // Hash the source file
-    emit statusChanged("Generating Source Hash...");
-    uint64_t srcHash = XXH64_digest(hashState);
-    XXH64_freeState(hashState);
-    if (fd_in >= 0) close(fd_in);
-    
-    // Ensure data is on disk before verification
-    // fsync(fd_out);
-    fdatasync(fd_out);
-    close(fd_out);
 
     // Open the file again briefly just to invalidate the cache for it
     int fd_drop = open(dest.c_str(), O_RDONLY);
@@ -312,8 +334,15 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
     }
     
     // Verify Phase (Read from disk)
-    // This will also verify the test generated file against the generated hash
-    return verifyFile(dest, srcHash);
+    if (!verifyFile(dest, srcHash)) {
+        // Verification failed or was cancelled during verification
+        if (!Config::DRY_RUN) {
+            try { fs::remove(dest); } catch(...) {}
+        }
+        return false;
+    }
+    
+    return true;
 }
 
 
@@ -321,49 +350,54 @@ bool CopyWorker::verifyFile(const fs::path& path, uint64_t expectedHash) {
     emit statusChanged("Verifying Checksum..."); // Update UI status
 
     // Open with O_DIRECT to bypass OS cache entirely
-    int fd = open(path.c_str(), O_RDONLY);
-    // int fd = open(path.c_str(), O_RDONLY | O_DIRECT);
+    // O_DIRECT: This forces the read to bypass the OS Page Cache, 
+    // ensuring the checksum is calculated against the actual bits on the physical media.
+    int fd = open(path.c_str(), O_RDONLY | O_DIRECT);
     
     // Fallback: Some filesystems/OSs don't support O_DIRECT
-    // For simplicity and compatibility, we use posix_fadvise(DONTNEED) to urge reading from disk
-    // if (fd < 0) {
-    //     fd = open(path.c_str(), O_RDONLY);
-    //     posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
-    // }
-
-    // Hint that we are reading sequentially; the kernel will pre-fetch data into RAM 
-    // in the background while XXH64 is processing the current buffer.
-    posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_WILLNEED);
+    // For simplicity and compatibility, we use posix_fadvise(DONTNEED) to urge reading from disk.
+    if (fd < 0) {
+        fd = open(path.c_str(), O_RDONLY);
+        if (fd >= 0) {
+            // If O_DIRECT failed, we try to clear the cache so we read from disk
+            // POSIX_FADV_DONTNEED in the fallback path: This attempts to clear the cache 
+            // before reading, maximizing the chance of a physical disk read even without O_DIRECT.
+            posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+            posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
+        }
+    }
 
     if (fd < 0) return false;
     
-    // Force the kernel to drop the page cache for this specific file.
-    // This ensures that the subsequent read() calls fetch data from the HDD.
-    posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
-
     XXH64_state_t* state = XXH64_createState();
     XXH64_reset(state, 0);
 
-    qint64 fileSize = fs::file_size(path);
-    qint64 totalRead = 0;
+    // std::aligned_alloc vs std::vector: std::aligned_alloc is superior here for two reasons:
+    // Alignment: O_DIRECT (Direct I/O) strictly requires memory buffers to be aligned to 
+    // the block size (usually 4096 bytes). std::vector does not guarantee this alignment.
+    // Initialization: std::vector zero-initializes memory upon creation. 
+    // For an 8MB buffer, this is wasted CPU cycles. aligned_alloc gives you raw memory, 
+    // which is faster since you are about to overwrite it anyway.
 
     // Use aligned_alloc instead of std::vector for maximum performance
     const size_t ALIGNMENT = 4096; // Standard page size
-
+    
     // Allocate memory
     void* rawPtr = std::aligned_alloc(ALIGNMENT, Config::BUFFER_SIZE);
     if (!rawPtr) return false;
-
+    
     // Use unique_ptr with a custom deleter so it calls free() automatically
     std::unique_ptr<char, decltype(&std::free)> buffer(static_cast<char*>(rawPtr), std::free);
 
     // std::vector<char> buffer(BUFFER_SIZE);
     // ssize_t n;
-
+    
     // Start the timer for verification speed
     auto startTime = std::chrono::steady_clock::now();
     auto lastSampleTime = startTime;
     qint64 lastBytesRead = 0;
+    qint64 fileSize = fs::file_size(path);
+    qint64 totalRead = 0;
 
     while (totalRead < fileSize) {
         if (m_cancelled) break;
