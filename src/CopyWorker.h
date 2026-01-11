@@ -33,7 +33,7 @@ public:
     void pause();
     void resume();
     void cancel();
-    void resolveConflict(ConflictAction action, bool applyToAll);
+    void resolveConflict(ConflictAction action, bool applyToAll, QString newName = "");
 
 signals:
     void progressChanged(QString file, int percent, double curSpeed, double avgSpeed, QString eta);
@@ -41,7 +41,7 @@ signals:
     void totalProgress(int fileCount, int totalFiles);
     void finished();
     void errorOccurred(FileError error);
-    void conflictNeeded(QString src, QString dest);
+    void conflictNeeded(QString src, QString dest, QString suggestedName);
 
 protected:
     void run() override;
@@ -61,6 +61,7 @@ private:
     ConflictAction m_userAction;
     bool m_applyAll = false;
     ConflictAction m_savedAction = Replace;
+    QString m_userNewName;
 
     std::chrono::steady_clock::time_point m_overallStartTime;
     std::chrono::duration<double> m_totalPausedDuration{0};

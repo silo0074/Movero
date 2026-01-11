@@ -39,22 +39,28 @@ private:
 };
 
 
+namespace Ui {
+class MainWindow;
+}
+
 class MainWindow : public QWidget {
     Q_OBJECT
 public:
-    MainWindow(const QString& mode, const std::vector<std::string>& sources, const std::string& dest, QWidget *parent = nullptr);
+    explicit MainWindow(const QString& mode, const std::vector<std::string>& sources, const std::string& dest, QWidget *parent = nullptr);
+    ~MainWindow();
 
 private slots:
     void onTogglePause();
     void onUpdateProgress(QString file, int percent, double curSpeed, double avgSpeed, QString eta);
     void onError(CopyWorker::FileError err);
     void onFinished();
-    void onConflictNeeded(QString src, QString dest);
+    void onConflictNeeded(QString src, QString dest, QString suggestedName);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
 
 private:
+    Ui::MainWindow *ui;
     CopyWorker* m_worker;
     SpeedGraph* m_graph;
     QLabel* m_statusLabel;

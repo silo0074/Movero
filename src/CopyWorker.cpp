@@ -32,10 +32,11 @@ void CopyWorker::cancel() {
     resume(); // Break wait if paused
 }
 
-void CopyWorker::resolveConflict(ConflictAction action, bool applyToAll) {
+void CopyWorker::resolveConflict(ConflictAction action, bool applyToAll, QString newName) {
     QMutexLocker locker(&m_inputMutex);
     m_userAction = action;
     m_applyAll = applyToAll;
+    m_userNewName = newName;
     m_inputWait.wakeAll();
 }
 
@@ -198,8 +199,10 @@ void CopyWorker::run() {
              
              if (!m_applyAll) {
                  // Ask User
+                 fs::path suggested = generateAutoRename(task.dest);
                  emit conflictNeeded(QString::fromStdString(task.src.string()), 
-                                     QString::fromStdString(task.dest.string()));
+                                     QString::fromStdString(task.dest.string()),
+                                     QString::fromStdString(suggested.filename().string()));
                  
                  QMutexLocker locker(&m_inputMutex);
                  m_inputWait.wait(&m_inputMutex); // Wait for UI
@@ -225,7 +228,11 @@ void CopyWorker::run() {
                  continue;
              }
              else if (action == Rename) {
-                 task.dest = generateAutoRename(task.dest);
+                 if (!m_applyAll && !m_userNewName.isEmpty()) {
+                     task.dest = task.dest.parent_path() / m_userNewName.toStdString();
+                 } else {
+                     task.dest = generateAutoRename(task.dest);
+                 }
              }
              // If Replace, just proceed (O_TRUNC will handle it)
         }

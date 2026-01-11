@@ -25,6 +25,7 @@ set(SOURCES
     src/main.cpp
     src/MainWindow.cpp
     src/CopyWorker.cpp
+    src/MainWindow.ui
 )
 
 set(HEADERS

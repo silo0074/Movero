@@ -4,8 +4,13 @@
 #include <QPainterPath>
 #include <QMessageBox>
 #include <QCheckBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QLineEdit>
+#include <QFileInfo>
 
 #include "MainWindow.h"
+#include "ui_MainWindow.h"
 #include "Config.h"
 #include "LogHelper.h"
 
@@ -228,7 +233,9 @@ QString SpeedGraph::formatSpeed(double mbps) {
 
 // --- MainWindow Implementation ---
 MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sources, const std::string& dest, QWidget *parent)
-: QWidget(parent), m_isPaused(false), m_smoothedSpeed(0.0){
+: QWidget(parent), ui(new Ui::MainWindow), m_isPaused(false), m_smoothedSpeed(0.0){
+
+    ui->setupUi(this);
 
     setWindowTitle("FastCopier - " + mode);
     resize(500, 450);
@@ -291,6 +298,10 @@ MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sour
     m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // 10 updates per second
 
     m_worker->start();
+}
+
+MainWindow::~MainWindow() {
+    delete ui;
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -358,29 +369,65 @@ void MainWindow::onError(CopyWorker::FileError err) {
     m_errorList->setStyleSheet("border: 1px solid red;");
 }
 
-void MainWindow::onConflictNeeded(QString src, QString dest) {
-    QMessageBox msgBox(this);
-    msgBox.setWindowTitle("File Conflict");
-    msgBox.setText("Destination file already exists:\n" + dest);
-    msgBox.setInformativeText("Source: " + src);
-    msgBox.setIcon(QMessageBox::Question);
+void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedName) {
+    QDialog dialog(this);
+    dialog.setWindowTitle("File Conflict");
     
-    QPushButton *replaceBtn = msgBox.addButton("Replace", QMessageBox::AcceptRole);
-    QPushButton *skipBtn = msgBox.addButton("Skip", QMessageBox::RejectRole);
-    QPushButton *renameBtn = msgBox.addButton("Rename", QMessageBox::ActionRole);
-    QPushButton *cancelBtn = msgBox.addButton(QMessageBox::Cancel);
+    QVBoxLayout* layout = new QVBoxLayout(&dialog);
     
-    QCheckBox *cb = new QCheckBox("Do this for all conflicts", &msgBox);
-    msgBox.setCheckBox(cb);
+    layout->addWidget(new QLabel("Destination file already exists. Select an action:", &dialog));
     
-    msgBox.exec();
+    // --- Details Grid ---
+    QGridLayout* grid = new QGridLayout();
+    QFileInfo srcInfo(src);
+    QFileInfo destInfo(dest);
+    
+    auto fmtSize = [](qint64 s) {
+        if (s > 1024*1024*1024) return QString::number(s/(1024.0*1024*1024), 'f', 2) + " GB";
+        if (s > 1024*1024) return QString::number(s/(1024.0*1024), 'f', 2) + " MB";
+        return QString::number(s/1024.0, 'f', 2) + " KB";
+    };
+    
+    grid->addWidget(new QLabel("<b>Source:</b>"), 0, 0);
+    grid->addWidget(new QLabel(src), 0, 1);
+    grid->addWidget(new QLabel(QString("Size: %1").arg(fmtSize(srcInfo.size()))), 1, 1);
+    grid->addWidget(new QLabel(QString("Date: %1").arg(srcInfo.lastModified().toString())), 2, 1);
+    
+    grid->addWidget(new QLabel("<b>Destination:</b>"), 3, 0);
+    grid->addWidget(new QLabel(dest), 3, 1);
+    grid->addWidget(new QLabel(QString("Size: %1").arg(fmtSize(destInfo.size()))), 4, 1);
+    grid->addWidget(new QLabel(QString("Date: %1").arg(destInfo.lastModified().toString())), 5, 1);
+    
+    layout->addLayout(grid);
+    
+    // --- Rename Input ---
+    QHBoxLayout* renameLayout = new QHBoxLayout();
+    renameLayout->addWidget(new QLabel("Rename to:"));
+    QLineEdit* renameEdit = new QLineEdit(suggestedName);
+    renameLayout->addWidget(renameEdit);
+    layout->addLayout(renameLayout);
+    
+    // --- Controls ---
+    QCheckBox *cb = new QCheckBox("Do this for all conflicts", &dialog);
+    layout->addWidget(cb);
+    
+    QDialogButtonBox* buttons = new QDialogButtonBox();
+    QPushButton *replaceBtn = buttons->addButton("Replace", QDialogButtonBox::AcceptRole);
+    QPushButton *skipBtn = buttons->addButton("Skip", QDialogButtonBox::RejectRole);
+    QPushButton *renameBtn = buttons->addButton("Rename", QDialogButtonBox::ActionRole);
+    QPushButton *cancelBtn = buttons->addButton(QDialogButtonBox::Cancel);
+    layout->addWidget(buttons);
     
     CopyWorker::ConflictAction action = CopyWorker::Cancel;
-    if (msgBox.clickedButton() == replaceBtn) action = CopyWorker::Replace;
-    else if (msgBox.clickedButton() == skipBtn) action = CopyWorker::Skip;
-    else if (msgBox.clickedButton() == renameBtn) action = CopyWorker::Rename;
     
-    m_worker->resolveConflict(action, cb->isChecked());
+    connect(replaceBtn, &QPushButton::clicked, [&](){ action = CopyWorker::Replace; dialog.accept(); });
+    connect(skipBtn, &QPushButton::clicked, [&](){ action = CopyWorker::Skip; dialog.accept(); });
+    connect(renameBtn, &QPushButton::clicked, [&](){ action = CopyWorker::Rename; dialog.accept(); });
+    connect(cancelBtn, &QPushButton::clicked, [&](){ action = CopyWorker::Cancel; dialog.reject(); });
+    
+    dialog.exec();
+    
+    m_worker->resolveConflict(action, cb->isChecked(), renameEdit->text());
 }
 
 void MainWindow::onFinished() {
