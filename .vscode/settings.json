@@ -1,0 +1,11 @@
+{
+    "cmake.configureSettings": {
+        "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=mold",
+    },
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.generator": "Unix Makefiles",
+
+    "files.associations": {
+        "CMakeLists.txt": "cmake"
+    }
+}

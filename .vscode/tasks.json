@@ -1,0 +1,35 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+		{
+			"type": "cmake",
+			"label": "cmake: build debug",
+			"command": "build",
+			"targets": [
+				"all"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"options": {
+				"env": {
+					"CMAKE_BUILD_TYPE": "Debug"
+				}
+			}
+		},
+		{
+			"type": "cmake",
+			"label": "cmake: build release",
+			"command": "build",
+			"targets": [
+				"all"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"options": {
+				"env": {
+					"CMAKE_BUILD_TYPE": "Release"
+				}
+			}
+		}
+	]
+}

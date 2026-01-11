@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=KonqPopupMenu/Plugin,inode/directory
+MimeType=inode/directory;
+Actions=FastPasteCopy;FastPasteMove;
+X-KDE-Submenu=Fast Copier
+
+[Desktop Action FastPasteCopy]
+Name=Paste Files Here (Fast Copy)
+Icon=edit-paste
+# %f passes the current folder path (destination)
+Exec=/run/media/me/D_TOSHIBA_S300/Projects/FastCopier/FastCopier cp %f
+
+[Desktop Action FastPasteMove]
+Name=Paste Files Here (Fast Move)
+Icon=edit-paste
+Exec=/run/media/me/D_TOSHIBA_S300/Projects/FastCopier/FastCopier mv %f
