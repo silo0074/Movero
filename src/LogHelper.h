@@ -46,8 +46,8 @@ enum class LogLevel {
     // Use the PROJECT_ROOT defined in CMakeLists.txt
     // If __FILE__ starts with PROJECT_ROOT, skip that many characters.
     // strncmp: This compares the beginning of the strings. 
-    // If __FILE__ is /home/me/FastCopier/src/main.cpp and PROJECT_ROOT is 
-    // /home/me/FastCopier/, the comparison is true, and it adds the length 
+    // If __FILE__ is /home/me/Movero/src/main.cpp and PROJECT_ROOT is 
+    // /home/me/Movero/, the comparison is true, and it adds the length 
     // of the root to the pointer, leaving you with src/main.cpp
     // Ensure PROJECT_ROOT is handled as a string_view or pointer safely
     #define __FILENAME__ (strncmp(__FILE__, PROJECT_ROOT, strlen(PROJECT_ROOT)) == 0 ? \

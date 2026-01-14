@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(FastCopier LANGUAGES CXX)
+project(Movero LANGUAGES CXX)
 project(${PROJECT_NAME} VERSION 1.0.0)
 
 # Pass the version to C++ as a macro
@@ -54,5 +54,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${XXHASH_LIBRARIES}
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${XXHASH_INCLUDE_DIRS})
-
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_BINARY_DIR} # helps find generated ui_* files
+    ${XXHASH_INCLUDE_DIRS}
+)

@@ -4,7 +4,7 @@
 
 namespace Config {
     // Defined by CMakeLists
-    // inline constexpr char APP_NAME[] = "FastCopier";
+    // inline constexpr char APP_NAME[] = "Movero";
     // inline constexpr char APP_VERSION[] = "1.0.0";
 
     inline constexpr char DEVELOPER[] = "Liviu Istrate";

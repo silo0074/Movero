@@ -1,7 +1,24 @@
+// {
+//     "cmake.configureSettings": {
+//         "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld",
+//         "CMAKE_PREFIX_PATH": "/var/lib/flatpak/runtime/org.kde.Sdk/x86_64/6.9/active/files",
+//         "Qt6_DIR": "/var/lib/flatpak/runtime/org.kde.Sdk/x86_64/6.9/active/files/lib/x86_64-linux-gnu/cmake/Qt6",
+        
+//         // These specific wrappers are the ONLY place LD_LIBRARY_PATH should exist
+//         "CMAKE_AUTOUIC_EXECUTABLE_TARGET": "env LD_LIBRARY_PATH=/var/lib/flatpak/runtime/org.kde.Sdk/x86_64/6.9/active/files/lib/x86_64-linux-gnu /var/lib/flatpak/runtime/org.kde.Sdk/x86_64/6.9/active/files/lib/libexec/uic",
+//         "CMAKE_AUTOMOC_EXECUTABLE_TARGET": "env LD_LIBRARY_PATH=/var/lib/flatpak/runtime/org.kde.Sdk/x86_64/6.9/active/files/lib/x86_64-linux-gnu /var/lib/flatpak/runtime/org.kde.Sdk/x86_64/6.9/active/files/lib/libexec/moc"
+//     },
+//     "cmake.environment": {
+//         "PATH": "/usr/lib/sdk/llvm21/bin:/var/lib/flatpak/runtime/org.kde.Sdk/x86_64/6.9/active/files/bin:${env:PATH}"
+//     }
+//     // DELETED: cmake.buildEnvironment 
+// }
+
 {
     "cmake.configureSettings": {
-        "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=mold",
+        "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld",
     },
+
     "cmake.buildDirectory": "${workspaceFolder}/build",
     "cmake.generator": "Unix Makefiles",
 
@@ -9,3 +26,4 @@
         "CMakeLists.txt": "cmake"
     }
 }
+

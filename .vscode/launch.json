@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug: FastCopier",
+            "name": "Debug: Movero",
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
@@ -27,7 +27,7 @@
             "preLaunchTask": "cmake: build debug"
         },
         {
-            "name": "Release: FastCopier",
+            "name": "Release: Movero",
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",

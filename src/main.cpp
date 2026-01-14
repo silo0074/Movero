@@ -17,6 +17,26 @@ using std::endl;
 // sudo zypper install cmake gcc-c++ mold lld xxhash-devel \
 qt6-base-devel qt6-widgets-devel
 
+// Flatpak
+// flatpak install flathub org.kde.Sdk//6.9
+// flatpak install flathub org.kde.Platform//6.9
+// Pick version
+// flatpak remote-ls flathub | grep llvm
+// flatpak install flathub org.freedesktop.Sdk.Extension.llvm21
+
+// In Flatseal add:
+// Variables
+// SDK=org.kde.Sdk//6.9
+// FLATPAK_ENABLE_SDK_EXT=*
+// Other files
+// /var/lib/flatpak/runtime/org.kde.Sdk:ro
+// /var/lib/flatpak/runtime/org.kde.Sdk/x86_64/6.9/active/files:ro
+// so VS Codium Flatpak has access to SDK.
+// Folder mapping in Flatseal and settings.json paths is the most 
+// reliable way to bridge the gap between the Freedesktop-based VSCodium and the KDE-based SDK.
+
+
+
 // Ubuntu
 // sudo apt update
 // sudo apt install cmake g++ mold lld libxxhash-dev \
@@ -35,7 +55,7 @@ int main(int argc, char *argv[]) {
     LOG(LogLevel::INFO) << APP_NAME << "started.";
     LOG(LogLevel::INFO) << "Version" << APP_VERSION;
 
-    // Arguments: FastCopier [cp|mv]
+    // Arguments: Movero [cp|mv]
     QString mode = "cp";
     if (argc > 1) mode = QString(argv[1]);
 

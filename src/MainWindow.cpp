@@ -8,6 +8,7 @@
 #include <QDialogButtonBox>
 #include <QLineEdit>
 #include <QFileInfo>
+#include <qobject.h>
 
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
@@ -237,9 +238,13 @@ MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sour
 
     ui->setupUi(this);
 
-    setWindowTitle("FastCopier - " + mode);
+    m_baseTitle = QString(APP_NAME) + " - " + mode;
+    setWindowTitle(m_baseTitle);
     resize(500, 450);
 
+    ui->label->setText("test");
+
+    /*
     auto layout = new QVBoxLayout(this);
 
     m_statusActionLabel = new QLabel("Initializing...");
@@ -298,6 +303,7 @@ MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sour
     m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // 10 updates per second
 
     m_worker->start();
+    */
 }
 
 MainWindow::~MainWindow() {
@@ -307,20 +313,20 @@ MainWindow::~MainWindow() {
 void MainWindow::closeEvent(QCloseEvent *event) {
     LOG(LogLevel::INFO) << "Close event received.";
 
-    if (m_worker->isRunning()) {
-        // Update UI to show we are stopping
-        m_statusActionLabel->setText("Stopping...");
-        m_statusLabel->setText("Cleaning up...");
+    // if (m_worker->isRunning()) {
+    //     // Update UI to show we are stopping
+    //     m_statusActionLabel->setText("Stopping...");
+    //     m_statusLabel->setText("Cleaning up...");
         
-        // Signal the thread to stop
-        LOG(LogLevel::INFO) << "Cancelling copy worker.";
-        m_worker->cancel();
+    //     // Signal the thread to stop
+    //     LOG(LogLevel::INFO) << "Cancelling copy worker.";
+    //     m_worker->cancel();
         
-        // Wait for the thread to finish safely. 
-        // This ensures the worker cleans up files and exits run() before we destroy it.
-        LOG(LogLevel::INFO) << "Waiting for copy worker to finish.";
-        m_worker->wait();
-    }
+    //     // Wait for the thread to finish safely. 
+    //     // This ensures the worker cleans up files and exits run() before we destroy it.
+    //     LOG(LogLevel::INFO) << "Waiting for copy worker to finish.";
+    //     m_worker->wait();
+    // }
     event->accept();
 }
 
@@ -340,12 +346,16 @@ void MainWindow::onTogglePause() {
 }
 
 
-void MainWindow::onUpdateProgress(QString file, int percent, double curSpeed, double avgSpeed, QString eta) {
+void MainWindow::onUpdateProgress(QString file, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta) {
     m_currentFile = file;
     m_filePercent = percent;
     m_currentSpeed = curSpeed;
     m_avgSpeed = avgSpeed;
     m_eta = eta;
+
+    // Update Window Title for Taskbar Progress
+    // Example: "45% - Movero - cp"
+    setWindowTitle(QString("%1% - %2").arg(totalPercent).arg(m_baseTitle));
 
     // m_statusLabel->setText("File: " + file + " AvgSpeed: " + QString::number(avgSpeed) + " ETA: " + eta);
     // m_fileProgress->setValue(percent);
@@ -436,4 +446,5 @@ void MainWindow::onFinished() {
     m_statusActionLabel->setText("Done.");
     m_pauseBtn->setEnabled(false);
     m_cancelBtn->setText("Close");
+    setWindowTitle(m_baseTitle); // Reset title to remove percentage
 }

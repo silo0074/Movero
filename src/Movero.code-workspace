@@ -7,6 +7,9 @@
 	"settings": {
 		"files.associations": {
 			"CMakeLists.txt": "cmake"
-		}
+		},
+		"conventionalCommits.scopes": [
+			"ui"
+		]
 	}
 }

@@ -36,7 +36,7 @@ public:
     void resolveConflict(ConflictAction action, bool applyToAll, QString newName = "");
 
 signals:
-    void progressChanged(QString file, int percent, double curSpeed, double avgSpeed, QString eta);
+    void progressChanged(QString file, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
     void statusChanged(QString status);
     void totalProgress(int fileCount, int totalFiles);
     void finished();

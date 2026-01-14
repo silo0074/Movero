@@ -51,7 +51,7 @@ public:
 
 private slots:
     void onTogglePause();
-    void onUpdateProgress(QString file, int percent, double curSpeed, double avgSpeed, QString eta);
+    void onUpdateProgress(QString file, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
     void onError(CopyWorker::FileError err);
     void onFinished();
     void onConflictNeeded(QString src, QString dest, QString suggestedName);
@@ -79,4 +79,5 @@ private:
     double m_currentSpeed;
     double m_avgSpeed;
     QString m_eta;
+    QString m_baseTitle;
 };

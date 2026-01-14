@@ -96,7 +96,7 @@ void CopyWorker::updateProgress(const fs::path& path, qint64 fileRead, qint64 fi
     double curMbps = ((fileRead - lastBytesRead) / (1024.0 * 1024.0)) / elapsedSinceLast.count();
     
     emit progressChanged(QString::fromStdString(path.filename().string()), 
-                        filePercent, curMbps, avgMbps, etaStr);
+                        filePercent, totalPercent, curMbps, avgMbps, etaStr);
 
     lastSampleTime = now;
     lastBytesRead = fileRead;
@@ -409,8 +409,9 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
     close(fd_out);
 
     // Force 100% and reset speed graph after copying
+    int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
     emit progressChanged(QString::fromStdString(src.filename().string()), 
-                        100, 0.0, 0.0, "");
+                        100, totalPercent, 0.0, 0.0, "");
 
     // Open the file again briefly just to invalidate the cache for it
     int fd_drop = open(dest.c_str(), O_RDONLY);
@@ -526,8 +527,9 @@ bool CopyWorker::verifyFile(const fs::path& path, uint64_t expectedHash) {
     }
 
     // Force 100% and reset speed graph after verification
+    int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
     emit progressChanged(QString::fromStdString(path.filename().string()), 
-                        100, 0.0, 0.0, "");
+                        100, totalPercent, 0.0, 0.0, "");
 
     uint64_t diskHash = XXH64_digest(state);
     XXH64_freeState(state);
