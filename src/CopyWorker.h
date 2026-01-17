@@ -16,9 +16,24 @@ class CopyWorker : public QThread {
 
 public:
     enum Mode { Copy, Move };
+    
+    enum ErrorType {
+        NoError,
+        DiskFull,
+        DriveCheckFailed,
+        SourceOpenFailed,
+        FileOpenFailed,
+        ReadError,
+        UnexpectedEOF,
+        WriteError,
+        ChecksumMismatch
+    };
+    Q_ENUM(ErrorType)
+
     struct FileError {
+        ErrorType code;
         QString path;
-        QString errorMsg;
+        QString extraInfo;
     };
     
     enum ConflictAction {

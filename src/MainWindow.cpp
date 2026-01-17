@@ -398,11 +398,33 @@ void MainWindow::onTogglePause() {
 
 
 void MainWindow::onError(CopyWorker::FileError err) {
-    // m_graphTimer->stop(); // Stop the graph
-    LOG(LogLevel::DEBUG) << "Error: " + err.path + ": " + err.errorMsg;
-    // m_errorList->setHidden(false);
-    // m_errorList->addItem(err.path + ": " + err.errorMsg);
-    // m_errorList->setStyleSheet("border: 1px solid red;");
+    QString msg;
+    switch (err.code) {
+        case CopyWorker::DiskFull:
+            if (err.path.isEmpty()) {
+                auto parts = err.extraInfo.split('|');
+                if (parts.size() >= 2) {
+                    msg = QString("Not enough space. Required: %1 GB, Available: %2 GB")
+                          .arg(parts[0], parts[1]);
+                } else {
+                    msg = "Not enough disk space.";
+                }
+            } else {
+                msg = "Not enough disk space";
+            }
+            break;
+        case CopyWorker::DriveCheckFailed: msg = "Could not determine available space on destination."; break;
+        case CopyWorker::SourceOpenFailed: msg = "Failed to open source"; break;
+        case CopyWorker::FileOpenFailed: msg = "Failed to open file"; break;
+        case CopyWorker::ReadError: msg = "Read error"; break;
+        case CopyWorker::UnexpectedEOF: msg = "Unexpected end of file"; break;
+        case CopyWorker::WriteError: msg = "Write error"; break;
+        case CopyWorker::ChecksumMismatch: msg = "Checksum Mismatch!"; break;
+        default: msg = "Unknown error"; break;
+    }
+
+    QString logMsg = err.path.isEmpty() ? msg : (err.path + ": " + msg);
+    LOG(LogLevel::DEBUG) << "Error: " + logMsg;
 }
 
 

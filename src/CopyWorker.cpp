@@ -168,15 +168,14 @@ void CopyWorker::run() {
             double availGB = destSpace.available / (1024.0 * 1024.0 * 1024.0);
             
             emit errorOccurred({
-                "Disk Space Error", 
-                QString("Not enough space. Required: %1 GB, Available: %2 GB")
-                .arg(reqGB, 0, 'f', 2)
-                .arg(availGB, 0, 'f', 2)
+                DiskFull, 
+                "", 
+                QString("%1|%2").arg(reqGB, 0, 'f', 2).arg(availGB, 0, 'f', 2)
             });
             return; // Terminate before starting
         }
     } catch (const fs::filesystem_error& e) {
-        emit errorOccurred({"Drive Error", "Could not determine available space on destination."});
+        emit errorOccurred({DriveCheckFailed, "", ""});
         return;
     }
 
@@ -205,7 +204,7 @@ void CopyWorker::run() {
             currentFileSize = fs::file_size(task.src);
             // Check space (add safety margin)
             if (fs::space(m_destDir).available < (currentFileSize + safetyMargin)) {
-                emit errorOccurred({QString::fromStdString(task.src.string()), "Not enough disk space"});
+                emit errorOccurred({DiskFull, QString::fromStdString(task.src.string())});
                 break;
             }
         } catch (...) { /* Ignore space check errors, let write() fail if full */ }
@@ -304,7 +303,7 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
         fd_in = open(src.c_str(), O_RDONLY);
 
         if (fd_in < 0) {
-            emit errorOccurred({QString::fromStdString(src.string()), "Failed to open source"});
+            emit errorOccurred({SourceOpenFailed, QString::fromStdString(src.string())});
             return false;
         }
 
@@ -315,7 +314,7 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
     int fd_out = open(dest.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     
     if ((!Config::DRY_RUN && fd_in < 0) || (fd_out < 0)) {
-        emit errorOccurred({QString::fromStdString(src.string()), "Failed to open file"});
+        emit errorOccurred({FileOpenFailed, QString::fromStdString(src.string())});
         if(fd_in >= 0) close(fd_in);
         if(fd_out >= 0) close(fd_out);
         return false;
@@ -382,11 +381,11 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
         }
 
         if (bytesRead < 0) {
-            emit errorOccurred({QString::fromStdString(src.string()), "Read error"});
+            emit errorOccurred({ReadError, QString::fromStdString(src.string())});
             break;
         }
         if (bytesRead == 0) {
-            emit errorOccurred({QString::fromStdString(src.string()), "Unexpected end of file"});
+            emit errorOccurred({UnexpectedEOF, QString::fromStdString(src.string())});
             break;
         }
 
@@ -396,7 +395,7 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
         // Write
         ssize_t written = write(fd_out, buffer.get(), bytesRead);
         if (written != bytesRead) {
-            emit errorOccurred({QString::fromStdString(src.string()), "Write error"});
+            emit errorOccurred({WriteError, QString::fromStdString(src.string())});
             break;
         }
 
@@ -568,7 +567,7 @@ bool CopyWorker::verifyFile(const fs::path& path, uint64_t expectedHash) {
     close(fd);
 
     if (diskHash != expectedHash) {
-        emit errorOccurred({QString::fromStdString(path.string()), "Checksum Mismatch!"});
+        emit errorOccurred({ChecksumMismatch, QString::fromStdString(path.string())});
         return false;
     }
     return true;
