@@ -6,7 +6,7 @@
 #include <QDateTime>
 #include <memory>
 #include <cstdlib>
-#include <regex>
+#include <QRegularExpression>
 
 #include "CopyWorker.h"
 #include "Config.h"
@@ -52,27 +52,35 @@ void CopyWorker::resolveConflict(ConflictAction action, bool applyToAll, QString
 }
 
 static fs::path generateAutoRename(const fs::path& path) {
+    LOG(LogLevel::DEBUG) << "Input:" << path.string();
     fs::path folder = path.parent_path();
-    fs::path stem = path.stem();
-    fs::path ext = path.extension();
+    QString stem = QString::fromStdString(path.stem().string());
+    QString ext = QString::fromStdString(path.extension().string());
+
+    LOG(LogLevel::DEBUG) << "AutoRename Input:" << stem << "Ext:" << ext;
     
     // Check if stem ends with (N)
-    std::string stemStr = stem.string();
-    static const std::regex re(R"(^(.*) \((\d+)\)$)");
-    std::smatch match;
+    static const QRegularExpression re(R"(^(.*) \((\d{1,3})\)$)");
+    QRegularExpressionMatch match = re.match(stem);
     
     int number = 1;
-    std::string baseName = stemStr;
+    QString baseName = stem;
     
-    if (std::regex_match(stemStr, match, re)) {
-        baseName = match[1].str();
-        number = std::stoi(match[2].str()) + 1;
+    if (match.hasMatch()) {
+        baseName = match.captured(1);
+        number = match.captured(2).toInt() + 1;
+        LOG(LogLevel::DEBUG) << "Regex Match! Base:" << baseName << "Next Number:" << number;
+    } else {
+        LOG(LogLevel::DEBUG) << "No Regex Match. Appending (1).";
     }
     
     while (true) {
-        std::string newName = baseName + " (" + std::to_string(number) + ")" + ext.string();
-        fs::path newPath = folder / newName;
-        if (!fs::exists(newPath)) return newPath;
+        QString newName = QString("%1 (%2)%3").arg(baseName).arg(number).arg(ext);
+        fs::path newPath = folder / newName.toStdString();
+        if (!fs::exists(newPath)) {
+            LOG(LogLevel::DEBUG) << "Generated unique name:" << QString::fromStdString(newPath.filename().string());
+            return newPath;
+        }
         number++;
     }
 }

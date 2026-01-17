@@ -11,6 +11,10 @@
 #include <qobject.h>
 #include <QThread>
 #include <QDateTime>
+#include <QtDBus/QDBusConnection>
+#include <QtDBus/QDBusMessage>
+#include <QScreen>
+#include <QGuiApplication>
 
 #include "MainWindow.h"
 #include "CopyWorker.h"
@@ -280,16 +284,19 @@ MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sour
         ui->labelETA->setText("ETA: " + m_eta);
         ui->labelProgress->setText(QString::number(m_totalProgress) + "% complete");
         ui->labelItems->setText("Items remaining: " + QString::number(m_filesRemaining) + 
-                                " (" + QString::number(remainingBytes / 1024 / 1024) + " MB)");
-
+        " (" + QString::number(remainingBytes / 1024 / 1024) + " MB)");
+        
         // Update Window Title for Taskbar Progress
         // Example: "45% - Movero - cp"
-        // setWindowTitle(QString("%1% - %2").arg(m_totalProgress).arg(m_baseTitle));
+        setWindowTitle(QString("%1% - %2").arg(m_totalProgress).arg(m_baseTitle));
+        
+        // Update Taskbar / Dock Progress
+        updateTaskbarProgress(m_totalProgress);
 
         // m_statusLabel->setText("File: " + m_currentFile + " AvgSpeed: " + QString::number(m_avgSpeed) + " ETA: " + m_eta);
         // m_fileProgress->setValue(m_filePercent);
         // m_speedLabel->setText(QString::number(m_smoothedSpeed, 'f', 1) + " MB/s");
-
+        
         // m_graph->addSpeedPoint(m_smoothedSpeed);
         
         // If the worker hasn't sent an update in a while, 
@@ -391,9 +398,34 @@ void MainWindow::onTogglePause() {
         m_worker->pause();
         m_graph->setPaused(true);
         m_graphTimer->stop();     // Freeze the graph movement
-        ui->btnCancel->setText("Pause");
+        ui->btnPause->setText("Pause");
     }
     m_isPaused = !m_isPaused;
+}
+
+void MainWindow::updateTaskbarProgress(int percent) {
+    // Clamp percentage
+    if (percent < 0) percent = 0;
+    if (percent > 100) percent = 100;
+
+    // Unity Launcher API (Supported by Ubuntu Dock, Dash to Dock, KDE Task Manager)
+    // We broadcast a signal that the Dock listens to.
+    
+    QVariantMap properties;
+    properties.insert("progress", percent / 100.0);
+    properties.insert("progress-visible", (percent > 0 && percent < 100));
+    
+    // URI must match the desktop file name set in main.cpp
+    QString uri = "application://" + QCoreApplication::applicationName() + ".desktop";
+
+    QDBusMessage message = QDBusMessage::createSignal(
+        "/com/canonical/Unity/LauncherEntry", 
+        "com.canonical.Unity.LauncherEntry", 
+        "Update"
+    );
+    
+    message << uri << properties;
+    QDBusConnection::sessionBus().send(message);
 }
 
 
@@ -518,6 +550,17 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
         dialog.reject(); 
     });
 
+    // Center the dialog on the screen
+    dialog.adjustSize();
+    QScreen *screen = this->screen();
+    if (!screen) screen = QGuiApplication::primaryScreen();
+    if (screen) {
+        QRect screenGeometry = screen->availableGeometry();
+        int x = screenGeometry.x() + (screenGeometry.width() - dialog.width()) / 2;
+        int y = screenGeometry.y() + (screenGeometry.height() - dialog.height()) / 2;
+        dialog.move(x, y);
+    }
+
     // 3. Execution
     // This blocks the Main Thread (but event loop keeps running)
     // Worker Thread is waiting on m_inputWait condition
@@ -534,6 +577,7 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
 
 void MainWindow::onFinished() {
     m_graphTimer->stop(); // Stop the graph once finished
+    updateTaskbarProgress(0); // Clear progress bar
     LOG(LogLevel::DEBUG) << "Operation Complete.";
     // m_statusLabel->setText("Operation Complete.");
     // m_statusActionLabel->setText("Done.");

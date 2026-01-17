@@ -31,6 +31,8 @@ qt6-base-devel qt6-widgets-devel
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
+    app.setApplicationName(APP_NAME);
+    app.setDesktopFileName(QString(APP_NAME) + ".desktop");
 
     LOG(LogLevel::INFO) << APP_NAME << "started.";
     LOG(LogLevel::INFO) << "Version" << APP_VERSION;

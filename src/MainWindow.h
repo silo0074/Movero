@@ -65,6 +65,7 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 
 private:
+    void updateTaskbarProgress(int percent);
     Ui::MainWindow *ui;
     CopyWorker* m_worker;
     SpeedGraph* m_graph;
