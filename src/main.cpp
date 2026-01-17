@@ -17,26 +17,6 @@ using std::endl;
 // sudo zypper install cmake gcc-c++ mold lld xxhash-devel \
 qt6-base-devel qt6-widgets-devel
 
-// Flatpak
-// flatpak install flathub org.kde.Sdk//6.9
-// flatpak install flathub org.kde.Platform//6.9
-// Pick version
-// flatpak remote-ls flathub | grep llvm
-// flatpak install flathub org.freedesktop.Sdk.Extension.llvm21
-
-// In Flatseal add:
-// Variables
-// SDK=org.kde.Sdk//6.9
-// FLATPAK_ENABLE_SDK_EXT=*
-// Other files
-// /var/lib/flatpak/runtime/org.kde.Sdk:ro
-// /var/lib/flatpak/runtime/org.kde.Sdk/x86_64/6.9/active/files:ro
-// so VS Codium Flatpak has access to SDK.
-// Folder mapping in Flatseal and settings.json paths is the most 
-// reliable way to bridge the gap between the Freedesktop-based VSCodium and the KDE-based SDK.
-
-
-
 // Ubuntu
 // sudo apt update
 // sudo apt install cmake g++ mold lld libxxhash-dev \
@@ -90,22 +70,25 @@ int main(int argc, char *argv[]) {
 
         if (sourceFiles.empty()) {
             QMessageBox::warning(nullptr, "Error", "No files found in clipboard!");
-            return 1;
+            // return 1;
         }
     }
-
+    
     // Prompt user for destination if not provided (Simplification: Use CWD or Picker)
     // For Service Menus, the destination is usually the folder you right-clicked IN.
     // However, Dolphin usually passes the selected files as args, not the destination.
     // Assuming the app is triggered inside the destination folder, we use CWD.
     // Alternatively, we open a FileDialog to pick destination.
-
+    
     // For this implementation, we assume the user right-clicked "Paste here" equivalent.
     std::string destDir = QDir::currentPath().toStdString();
-
+    
     // If triggered via arguments, you might pass dest as argv[2]
     if (argc > 2) destDir = argv[2];
-
+    
+    // sourceFiles.push_back("/run/media/me/D_TOSHIBA_S300/Projects/stepperCon library.mp4");
+    sourceFiles.push_back("/run/media/me/D_TOSHIBA_S300/Active/Săptămîna nebunilor (1971).mkv");
+    destDir = "/run/media/me/D_TOSHIBA_S300/Projects/Movero/build";
     MainWindow w(mode, sourceFiles, destDir);
     w.show();
 

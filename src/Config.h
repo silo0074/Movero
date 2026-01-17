@@ -30,7 +30,7 @@ namespace Config {
     inline constexpr double SPEED_GRAPH_MAX_SPEED = 10.0;
 
     // Set to true to bypass clipboard and test with a dummy file
-    inline constexpr bool DRY_RUN = true;
+    inline constexpr bool DRY_RUN = false;
     inline constexpr uintmax_t DRY_RUN_FILE_SIZE = 4ULL * 1024 * 1024 * 1024;
 
     // CopyWorker

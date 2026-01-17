@@ -6,8 +6,15 @@ project(${PROJECT_NAME} VERSION 1.0.0)
 add_definitions(-DAPP_VERSION="${PROJECT_VERSION}")
 add_definitions(-DAPP_NAME="${PROJECT_NAME}")
 
+# Adds the flag to all targets in the project
+add_compile_options(-fstack-protector-strong)
+
+# Add it to the linker
+add_link_options(-fstack-protector-strong)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_AUTOMOC ON) # Automatically run MOC
 set(CMAKE_AUTOUIC ON) # Automatically run UIC (if you use .ui files later)

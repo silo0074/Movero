@@ -15,7 +15,14 @@
 namespace fs = std::filesystem;
 
 CopyWorker::CopyWorker(const std::vector<std::string>& sources, const std::string& destDir, Mode mode, QObject* parent)
-: QThread(parent), m_sources(sources), m_destDir(destDir), m_mode(mode), m_paused(false), m_cancelled(false), m_applyAll(false) {}
+: QThread(parent), 
+    m_sources(sources), 
+    m_destDir(destDir), 
+    m_mode(mode), 
+    m_paused(false), 
+    m_cancelled(false), 
+    m_applyAll(false) 
+{}
 
 void CopyWorker::pause() {
     m_paused = true;
@@ -30,6 +37,9 @@ void CopyWorker::resume() {
 void CopyWorker::cancel() {
     m_cancelled = true;
     resume(); // Break wait if paused
+    
+    QMutexLocker locker(&m_inputMutex);
+    m_inputWait.wakeAll(); // Break wait if waiting for user input
 }
 
 void CopyWorker::resolveConflict(ConflictAction action, bool applyToAll, QString newName) {
@@ -37,6 +47,7 @@ void CopyWorker::resolveConflict(ConflictAction action, bool applyToAll, QString
     m_userAction = action;
     m_applyAll = applyToAll;
     m_userNewName = newName;
+    m_waitingForUser = false; // Signal that we are done
     m_inputWait.wakeAll();
 }
 
@@ -47,7 +58,7 @@ static fs::path generateAutoRename(const fs::path& path) {
     
     // Check if stem ends with (N)
     std::string stemStr = stem.string();
-    std::regex re(R"(^(.*) \((\d+)\)$)");
+    static const std::regex re(R"(^(.*) \((\d+)\)$)");
     std::smatch match;
     
     int number = 1;
@@ -73,14 +84,14 @@ void CopyWorker::updateProgress(const fs::path& path, qint64 fileRead, qint64 fi
 
     if (elapsedSinceLast.count() < Config::SPEED_UPDATE_INTERVAL) return;
 
-    // 1. Current File Progress
+    // Current File Progress
     int filePercent = (int)((fileRead * 100) / fileSize);
 
-    // 2. Global Progress (Total bytes including Copy + Verify)
+    // Global Progress (Total bytes including Copy + Verify)
     // m_totalWorkBytes is (Total Size * 2)
     int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
 
-    // 3. Average Speed & ETA
+    // Average Speed & ETA
     std::chrono::duration<double> totalActiveTime = (now - m_overallStartTime) - m_totalPausedDuration;
     double avgMbps = (m_totalBytesProcessed / (1024.0 * 1024.0)) / (totalActiveTime.count());
     uintmax_t bytesLeft = m_totalWorkBytes - m_totalBytesProcessed;
@@ -109,14 +120,16 @@ void CopyWorker::run() {
     uintmax_t totalBytesRequired = 0;
     
     if (Config::DRY_RUN) {
-        // Simulate a 2GB file task
+        // Simulate a file task
         totalBytesRequired = Config::DRY_RUN_FILE_SIZE; 
         tasks.push_back({"DRY_RUN_SOURCE", fs::path(m_destDir) / "DRY_RUN.dat"});
-        emit statusChanged("DRY RUN: Generating test file...");
+        emit statusChanged(DryRunGenerating);
+
     } else {
         
         // PHASE 1: Scan, Map, and Calculate Size
-        emit statusChanged("Scanning and calculating space...");
+        emit statusChanged(Scanning);
+
         for (const auto& srcStr : m_sources) {
             fs::path srcRoot(srcStr);
             if (!fs::exists(srcRoot)) continue;
@@ -149,8 +162,7 @@ void CopyWorker::run() {
     try {
         fs::space_info destSpace = fs::space(m_destDir);
         
-        // Add a 50MB safety margin to account for filesystem overhead/metadata
-        
+        // Add a safety margin to account for filesystem overhead/metadata
         if (destSpace.available < (totalBytesRequired + safetyMargin)) {
             double reqGB = totalBytesRequired / (1024.0 * 1024.0 * 1024.0);
             double availGB = destSpace.available / (1024.0 * 1024.0 * 1024.0);
@@ -178,16 +190,21 @@ void CopyWorker::run() {
     m_totalBytesProcessed = 0;
     m_totalSizeToCopy = totalBytesRequired;
     m_totalWorkBytes = totalBytesRequired * 2; // Copying + Verifying
+    m_completedFilesSize = 0;
+    
+    // Emit total files to copy
+    emit totalProgress(processed, totalFiles);
     
     for (auto& task : tasks) {
         if (m_cancelled) break;
         fs::create_directories(task.dest.parent_path());
 
         // 1. Space Check (Per File)
+        uintmax_t currentFileSize = 0;
         try {
-            uintmax_t fileSize = fs::file_size(task.src);
+            currentFileSize = fs::file_size(task.src);
             // Check space (add safety margin)
-            if (fs::space(m_destDir).available < (fileSize + safetyMargin)) {
+            if (fs::space(m_destDir).available < (currentFileSize + safetyMargin)) {
                 emit errorOccurred({QString::fromStdString(task.src.string()), "Not enough disk space"});
                 break;
             }
@@ -195,53 +212,60 @@ void CopyWorker::run() {
 
         // 2. Existence Check & Conflict Resolution
         if (fs::exists(task.dest)) {
-             ConflictAction action = m_savedAction;
+            ConflictAction action = m_savedAction;
+            LOG(LogLevel::DEBUG) << "File already exists:" << task.dest.string();
+            
+            if (!m_applyAll) {
+                fs::path suggested = generateAutoRename(task.dest);
+
+                // Lock BEFORE emitting and setting the flag
+                QMutexLocker locker(&m_inputMutex); 
+                m_waitingForUser = true; 
+
+                emit conflictNeeded(QString::fromStdString(task.src.string()), 
+                                    QString::fromStdString(task.dest.string()),
+                                    QString::fromStdString(suggested.filename().string()));
+                
+                // Now wait safely
+                while (m_waitingForUser && !m_cancelled) {
+                    m_inputWait.wait(&m_inputMutex);
+                }
+                action = m_userAction;
+                
+                if (m_applyAll) m_savedAction = action;
+            }
              
-             if (!m_applyAll) {
-                 // Ask User
-                 fs::path suggested = generateAutoRename(task.dest);
-                 emit conflictNeeded(QString::fromStdString(task.src.string()), 
-                                     QString::fromStdString(task.dest.string()),
-                                     QString::fromStdString(suggested.filename().string()));
-                 
-                 QMutexLocker locker(&m_inputMutex);
-                 m_inputWait.wait(&m_inputMutex); // Wait for UI
-                 action = m_userAction;
-                 
-                 if (m_applyAll) m_savedAction = action;
-             }
-             
-             if (action == Cancel) {
-                 m_cancelled = true;
-                 break;
-             }
-             else if (action == Skip) {
-                 processed++;
-                 // Adjust totals so progress bar jumps to correct %
-                 uintmax_t fSize = 0;
-                 try { fSize = fs::file_size(task.src); } catch(...) {}
-                 
-                 m_totalWorkBytes -= (fSize * 2); 
-                 m_totalSizeToCopy -= fSize;
-                 
-                 emit totalProgress(processed, totalFiles);
-                 continue;
-             }
-             else if (action == Rename) {
-                 if (!m_applyAll && !m_userNewName.isEmpty()) {
-                     task.dest = task.dest.parent_path() / m_userNewName.toStdString();
-                 } else {
-                     task.dest = generateAutoRename(task.dest);
-                 }
-             }
-             // If Replace, just proceed (O_TRUNC will handle it)
+            if (action == Cancel) {
+                m_cancelled = true;
+                break;
+            } else if (action == Skip) {
+                processed++;
+                // Adjust totals so progress bar jumps to correct %
+                uintmax_t fSize = 0;
+                try { fSize = fs::file_size(task.src); } catch(...) {}
+                
+                m_totalWorkBytes -= (fSize * 2); 
+                m_totalSizeToCopy -= fSize;
+                
+                emit totalProgress(processed, totalFiles);
+                continue;
+            } else if (action == Rename) {
+                if (!m_applyAll && !m_userNewName.isEmpty()) {
+                    task.dest = task.dest.parent_path() / m_userNewName.toStdString();
+                } else {
+                    task.dest = generateAutoRename(task.dest);
+                }
+            }
+            // If Replace, just proceed (O_TRUNC will handle it)
         }
 
         // copyFile returns true ONLY if verification succeeds
+        LOG(LogLevel::DEBUG) << "Copying file";
         if (copyFile(task.src, task.dest)) { // copyFile verifies checksum
             if (m_mode == Move && !Config::DRY_RUN) {
                 fs::remove(task.src); 
             }
+            m_completedFilesSize += currentFileSize;
         }
         processed++;
         emit totalProgress(processed, totalFiles);
@@ -251,7 +275,7 @@ void CopyWorker::run() {
     // PHASE 3: Cleanup (Move Mode Only)
     // We only reach this if we are moving folders
     if (m_mode == Move && !m_cancelled) {
-        emit statusChanged("Removing empty folders...");
+        emit statusChanged(RemovingEmptyFolders);
         
         // Sort by length descending: ensures /A/B/C is deleted before /A/B/
         std::sort(sourceDirs.begin(), sourceDirs.end(), [](const fs::path& a, const fs::path& b) {
@@ -305,7 +329,10 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
     const size_t ALIGNMENT = 4096; // Standard page size
 
     // Allocate memory
-    void* rawPtr = std::aligned_alloc(ALIGNMENT, Config::BUFFER_SIZE);
+    // aligned_alloc requires size to be a multiple of alignment
+    size_t allocSize = Config::BUFFER_SIZE;
+    if (allocSize % ALIGNMENT != 0) allocSize = (allocSize + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
+    void* rawPtr = std::aligned_alloc(ALIGNMENT, allocSize);
     if (!rawPtr) return false;
 
     // Use unique_ptr with a custom deleter so it calls free() automatically
@@ -320,7 +347,7 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
     ssize_t bytesRead;
     qint64 lastBytesRead = 0;
 
-    emit statusChanged("Copying..."); // Notify UI
+    emit statusChanged(Copying); // Notify UI
 
     // Read source file and write to destination
     while (totalRead < fileSize) {
@@ -342,7 +369,7 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
             lastBytesRead = totalRead;
         }
 
-        size_t toRead = std::min((qint64)BUFFER_SIZE, fileSize - totalRead);
+        size_t toRead = std::min((qint64)Config::BUFFER_SIZE, fileSize - totalRead);
         ssize_t bytesRead;
 
         if (Config::DRY_RUN) {
@@ -398,7 +425,8 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
 
     // If we are here, the copy phase finished successfully.
     // Calculate Source Hash
-    emit statusChanged("Generating Source Hash...");
+    LOG(LogLevel::DEBUG) << "Generating Source Hash...";
+    emit statusChanged(GeneratingHash);
     uint64_t srcHash = XXH64_digest(hashState);
     XXH64_freeState(hashState);
     
@@ -423,6 +451,7 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
     
     // Verify Phase (Read from disk)
     if (!verifyFile(dest, srcHash)) {
+        LOG(LogLevel::DEBUG) << "Verification failed=" << dest.string();
         // Verification failed or was cancelled during verification
         try { fs::remove(dest); } catch(...) {}
         return false;
@@ -433,7 +462,7 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
 
 
 bool CopyWorker::verifyFile(const fs::path& path, uint64_t expectedHash) {
-    emit statusChanged("Verifying Checksum..."); // Update UI status
+    emit statusChanged(Verifying); // Update UI status
 
     // Open with O_DIRECT to bypass OS cache entirely
     // O_DIRECT: This forces the read to bypass the OS Page Cache, 
@@ -469,7 +498,10 @@ bool CopyWorker::verifyFile(const fs::path& path, uint64_t expectedHash) {
     const size_t ALIGNMENT = 4096; // Standard page size
     
     // Allocate memory
-    void* rawPtr = std::aligned_alloc(ALIGNMENT, Config::BUFFER_SIZE);
+    size_t allocSize = Config::BUFFER_SIZE;
+    if (allocSize % ALIGNMENT != 0) allocSize = (allocSize + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
+    void* rawPtr = std::aligned_alloc(ALIGNMENT, allocSize);
+
     if (!rawPtr) return false;
     
     // Use unique_ptr with a custom deleter so it calls free() automatically

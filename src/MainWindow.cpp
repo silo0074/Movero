@@ -9,8 +9,11 @@
 #include <QLineEdit>
 #include <QFileInfo>
 #include <qobject.h>
+#include <QThread>
+#include <QDateTime>
 
 #include "MainWindow.h"
+#include "CopyWorker.h"
 #include "ui_MainWindow.h"
 #include "Config.h"
 #include "LogHelper.h"
@@ -29,9 +32,7 @@ SpeedGraph::SpeedGraph(QWidget* parent)
 
 
 void SpeedGraph::addSpeedPoint(double mbps) {
-    if (mbps > m_peakSpeed) {
-        m_peakSpeed = mbps;
-    }
+    // QMutexLocker locker(&m_mutex); // Lock the mutex for the duration of this function
 
     // If we hit the limit, remove the oldest (first) point
     if (m_history.size() >= Config::SPEED_GRAPH_HISTORY_SIZE) {
@@ -61,6 +62,7 @@ void SpeedGraph::addSpeedPoint(double mbps) {
 
 
 void SpeedGraph::paintEvent(QPaintEvent*) {
+    // QMutexLocker locker(&m_mutex); // Also lock during painting to prevent crashes while drawing
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
 
@@ -90,7 +92,7 @@ void SpeedGraph::paintEvent(QPaintEvent*) {
 
     double step = static_cast<double>(gridRect.width()) / (m_history.size() - 1);
     
-    // 2. Draw Horizontal Grid Lines and Speed Labels
+    // Draw Horizontal Grid Lines and Speed Labels
     p.setFont(QFont("Arial", 8));
 
     for(int i = 0; i <= 4; ++i) {
@@ -109,7 +111,7 @@ void SpeedGraph::paintEvent(QPaintEvent*) {
         p.drawText(5, y + 4, speedLabel); 
     }
     
-    // 3. Draw Time Scale (X-Axis Labels)
+    // Draw Time Scale (X-Axis Labels)
     // Calculate total duration based on the actual update frequency of the UI graph
     double totalSeconds = ((m_history.size() - 1) * Config::UPDATE_INTERVAL_MS) / 1000.0;
     if (totalSeconds <= 0) totalSeconds = 1.0;
@@ -164,10 +166,10 @@ void SpeedGraph::paintEvent(QPaintEvent*) {
         p.drawText(textX, h - 5, timeLabel);
     };
 
-    // 1. Always draw the Max History label (Leftmost)
+    // Always draw the Max History label (Leftmost)
     drawTick(totalSeconds);
 
-    // 2. Draw 0s and intermediates
+    // Draw 0s and intermediates
     // Stop if we get too close to the Max label (approx 50px clearance) to avoid overlap
     double leftThreshold = gridRect.left() + 50;
 
@@ -177,7 +179,7 @@ void SpeedGraph::paintEvent(QPaintEvent*) {
         drawTick(static_cast<double>(t));
     }
     
-    // 4. Create and Draw the Path (Data)
+    // Create and Draw the Path (Data)
     if (m_history.size() > 1) {
         QPainterPath path;
         bool started = false;
@@ -210,17 +212,11 @@ void SpeedGraph::paintEvent(QPaintEvent*) {
         p.drawPath(path);
     }
 
-    // 5. Draw Current Speed Indicator (Dash line if paused)
+    // Draw Current Speed Indicator (Dash line if paused)
     double currentY = gridRect.bottom() - ((m_history.back() / m_maxSpeed) * gridRect.height());
     Qt::PenStyle lineStyle = m_isPaused ? Qt::DashLine : Qt::SolidLine;
     p.setPen(QPen(m_isPaused ? Qt::red : Qt::black, 1, lineStyle));
     p.drawLine(gridRect.left(), currentY, gridRect.right(), currentY);
-
-    // Draw Peak Speed Line (Thin dashed red line)
-    // double peakY = gridRect.bottom() - ((m_peakSpeed / m_maxSpeed) * gridRect.height());
-    // p.setPen(QPen(QColor(255, 0, 0, 100), 1, Qt::DashLine));
-    // p.drawLine(gridRect.left(), peakY, gridRect.right(), peakY);
-    // p.drawText(gridRect.left() + 5, peakY - 2, "Peak: " + formatSpeed(m_peakSpeed));
 }
 
 
@@ -234,128 +230,103 @@ QString SpeedGraph::formatSpeed(double mbps) {
 
 // --- MainWindow Implementation ---
 MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sources, const std::string& dest, QWidget *parent)
-: QWidget(parent), ui(new Ui::MainWindow), m_isPaused(false), m_smoothedSpeed(0.0){
+: QWidget(parent), 
+    ui(new Ui::MainWindow), 
+    m_isPaused(false), 
+    m_smoothedSpeed(0.0),
+    m_totalFiles(0), 
+    m_filesRemaining(0)
+{
 
     ui->setupUi(this);
+    m_graph = ui->speedGraphWidget;
 
-    m_baseTitle = QString(APP_NAME) + " - " + mode;
+    const char* mode_string = (mode == "mv") ? "Moving" : "Copying";
+    m_baseTitle = QString(APP_NAME) + " - " + mode_string;
     setWindowTitle(m_baseTitle);
-    resize(500, 450);
 
-    ui->label->setText("test");
-
-    /*
-    auto layout = new QVBoxLayout(this);
-
-    m_statusActionLabel = new QLabel("Initializing...");
-    m_statusLabel = new QLabel("Preparing...");
-    m_graph = new SpeedGraph(this);
-    m_fileProgress = new QProgressBar();
-    m_totalProgress = new QProgressBar();
-    m_speedLabel = new QLabel("0 MB/s");
-
-    m_errorList = new QListWidget();
-    m_errorList->setMaximumHeight(80);
-    m_errorList->setHidden(true);
-
-    auto btnLayout = new QHBoxLayout();
-    m_pauseBtn = new QPushButton("Pause");
-    m_cancelBtn = new QPushButton("Cancel");
-    btnLayout->addWidget(m_pauseBtn);
-    btnLayout->addWidget(m_cancelBtn);
-
-    layout->addWidget(m_statusActionLabel);
-    layout->addWidget(m_statusLabel);
-    layout->addWidget(m_graph);
-    layout->addWidget(m_speedLabel);
-    layout->addWidget(m_fileProgress);
-    layout->addWidget(m_totalProgress);
-    layout->addWidget(m_errorList);
-    layout->addLayout(btnLayout);
+    ui->labelCopyingFiles->setText("Copying 0 items (0 MB)");
+    ui->labelProgress->setText("0% complete");
+    ui->labelETA->setText("ETA: 00:00:00");
+    ui->labelFrom->setText("From: none");
+    ui->labelTo->setText("To: none");
+    ui->labelItems->setText("Items remaining: none (0 MB)");
 
     CopyWorker::Mode workerMode = (mode == "mv") ? CopyWorker::Move : CopyWorker::Copy;
     m_worker = new CopyWorker(sources, dest, workerMode, this);
 
     connect(m_worker, &CopyWorker::progressChanged, this, &MainWindow::onUpdateProgress);
-    connect(m_worker, &CopyWorker::statusChanged, m_statusActionLabel, &QLabel::setText);
-    connect(m_worker, &CopyWorker::totalProgress, m_totalProgress, &QProgressBar::setValue);
-    connect(m_worker, &CopyWorker::totalProgress, [&](int val, int max){ m_totalProgress->setMaximum(max); });
+    connect(m_worker, &CopyWorker::statusChanged, this, &MainWindow::onStatusChanged);
+    connect(m_worker, &CopyWorker::totalProgress, this, &MainWindow::onTotalProgress);
     connect(m_worker, &CopyWorker::errorOccurred, this, &MainWindow::onError);
     connect(m_worker, &CopyWorker::finished, this, &MainWindow::onFinished);
-    connect(m_worker, &CopyWorker::conflictNeeded, this, &MainWindow::onConflictNeeded);
+    connect(m_worker, &CopyWorker::conflictNeeded, this, &MainWindow::onConflictNeeded, Qt::QueuedConnection);
 
-    connect(m_pauseBtn, &QPushButton::clicked, this, &MainWindow::onTogglePause);
-    connect(m_cancelBtn, &QPushButton::clicked, this, &MainWindow::close);
+    connect(ui->btnPause, &QPushButton::clicked, this, &MainWindow::onTogglePause);
+    connect(ui->btnCancel, &QPushButton::clicked, this, &MainWindow::close);
 
+    // Update GUI
+    // Bad: Capturing [&] (everything by reference) is dangerous for timers
+    // Good: Capture [this] and check pointers
     m_graphTimer = new QTimer(this);
     connect(m_graphTimer, &QTimer::timeout, this, [this]() {
-        m_statusLabel->setText("File: " + m_currentFile + " AvgSpeed: " + QString::number(m_avgSpeed) + " ETA: " + m_eta);
-        m_fileProgress->setValue(m_filePercent);
-        m_speedLabel->setText(QString::number(m_smoothedSpeed, 'f', 1) + " MB/s");
+        if (!m_graph) return;
+        uint64_t totalBytes = m_worker->m_totalSizeToCopy;
+        uint64_t completedBytes = m_worker->m_completedFilesSize;
+        uint64_t remainingBytes = (totalBytes > completedBytes) ? (totalBytes - completedBytes) : 0;
 
-        // The graph now rolls at a constant 10Hz regardless of disk latency
-        m_graph->addSpeedPoint(m_smoothedSpeed);
+        ui->labelCopyingFiles->setText("Copying " + QString::number(m_totalFiles) + 
+                                        " items (" + QString::number(totalBytes / 1024 / 1024) + " MB)");
+        ui->labelETA->setText("ETA: " + m_eta);
+        ui->labelProgress->setText(QString::number(m_totalProgress) + "% complete");
+        ui->labelItems->setText("Items remaining: " + QString::number(m_filesRemaining) + 
+                                " (" + QString::number(remainingBytes / 1024 / 1024) + " MB)");
+
+        // Update Window Title for Taskbar Progress
+        // Example: "45% - Movero - cp"
+        // setWindowTitle(QString("%1% - %2").arg(m_totalProgress).arg(m_baseTitle));
+
+        // m_statusLabel->setText("File: " + m_currentFile + " AvgSpeed: " + QString::number(m_avgSpeed) + " ETA: " + m_eta);
+        // m_fileProgress->setValue(m_filePercent);
+        // m_speedLabel->setText(QString::number(m_smoothedSpeed, 'f', 1) + " MB/s");
+
+        // m_graph->addSpeedPoint(m_smoothedSpeed);
         
         // If the worker hasn't sent an update in a while, 
-        // we slowly decay the speed so the graph drops to 0
-        m_smoothedSpeed *= 0.9; 
+        // we slowly decay the speed so the graph drops to 0.
+        m_smoothedSpeed *= 0.9;
     });
     m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // 10 updates per second
 
     m_worker->start();
-    */
+   
 }
 
+
 MainWindow::~MainWindow() {
+    if (m_graphTimer) {
+        m_graphTimer->stop();
+    }
+    
+    if (m_worker) {
+        m_worker->cancel();
+        m_worker->wait(); // Ensure the thread is dead before we delete 'ui'
+    }
+    
     delete ui;
 }
 
-void MainWindow::closeEvent(QCloseEvent *event) {
-    LOG(LogLevel::INFO) << "Close event received.";
 
-    // if (m_worker->isRunning()) {
-    //     // Update UI to show we are stopping
-    //     m_statusActionLabel->setText("Stopping...");
-    //     m_statusLabel->setText("Cleaning up...");
-        
-    //     // Signal the thread to stop
-    //     LOG(LogLevel::INFO) << "Cancelling copy worker.";
-    //     m_worker->cancel();
-        
-    //     // Wait for the thread to finish safely. 
-    //     // This ensures the worker cleans up files and exits run() before we destroy it.
-    //     LOG(LogLevel::INFO) << "Waiting for copy worker to finish.";
-    //     m_worker->wait();
-    // }
-    event->accept();
-}
-
-void MainWindow::onTogglePause() {
-    if (m_isPaused) {
-        m_worker->resume();
-        m_graph->setPaused(false);
-        m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // Restart the graph movement
-        m_pauseBtn->setText("Pause");
-    } else {
-        m_worker->pause();
-        m_graph->setPaused(true);
-        m_graphTimer->stop();     // Freeze the graph movement
-        m_pauseBtn->setText("Resume");
-    }
-    m_isPaused = !m_isPaused;
-}
-
-
+/*----------------------------------------------------------------------
+    Updated by copy worker faster than the timer updates the GUI
+------------------------------------------------------------------------*/
 void MainWindow::onUpdateProgress(QString file, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta) {
     m_currentFile = file;
     m_filePercent = percent;
+    m_totalProgress = totalPercent;
     m_currentSpeed = curSpeed;
     m_avgSpeed = avgSpeed;
     m_eta = eta;
-
-    // Update Window Title for Taskbar Progress
-    // Example: "45% - Movero - cp"
-    setWindowTitle(QString("%1% - %2").arg(totalPercent).arg(m_baseTitle));
 
     // m_statusLabel->setText("File: " + file + " AvgSpeed: " + QString::number(avgSpeed) + " ETA: " + eta);
     // m_fileProgress->setValue(percent);
@@ -365,86 +336,186 @@ void MainWindow::onUpdateProgress(QString file, int percent, int totalPercent, d
     //     // m_smoothedSpeed = (m_smoothedSpeed * 0.9) + (curSpeed * 0.1);
         m_smoothedSpeed = (m_smoothedSpeed * 0.5) + (curSpeed * 0.5);
     
-    //     // Trigger graph update only when fresh data arrives (every 0.5s)
-    //     // m_graph->addSpeedPoint(m_smoothedSpeed);
-    //     m_speedLabel->setText(QString::number(m_smoothedSpeed, 'f', 1) + " MB/s");
+        // Trigger graph update only when fresh data arrives
+        m_graph->addSpeedPoint(m_smoothedSpeed);
     }
 }
 
 
-void MainWindow::onError(CopyWorker::FileError err) {
-    m_graphTimer->stop(); // Stop the graph
-    m_errorList->setHidden(false);
-    m_errorList->addItem(err.path + ": " + err.errorMsg);
-    m_errorList->setStyleSheet("border: 1px solid red;");
+void MainWindow::onStatusChanged(CopyWorker::Status status){
+    switch (status) {
+        case CopyWorker::DryRunGenerating: m_status = "DRY RUN: Generating test file..."; break;
+        case CopyWorker::Scanning: m_status = "Scanning and calculating space..."; break;
+        case CopyWorker::RemovingEmptyFolders: m_status = "Removing empty folders..."; break;
+        case CopyWorker::Copying: m_status = "Copying..."; break;
+        case CopyWorker::GeneratingHash: m_status = "Generating Source Hash..."; break;
+        case CopyWorker::Verifying: m_status = "Verifying Checksum..."; break;
+    }
 }
 
+
+void MainWindow::onTotalProgress(int fileCount, int totalFiles){
+    m_filesRemaining = fileCount;
+    m_totalFiles = totalFiles;
+}
+
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+    LOG(LogLevel::DEBUG) << "Close event received.";
+
+    if (m_worker->isRunning()) {
+        // Update UI to show we are stopping
+        // m_statusActionLabel->setText("Stopping...");
+        // m_statusLabel->setText("Cleaning up...");
+        
+        // Signal the thread to stop
+        LOG(LogLevel::DEBUG) << "Cancelling copy worker.";
+        m_worker->cancel();
+        
+        // Wait for the thread to finish safely. 
+        // This ensures the worker cleans up files and exits run() before we destroy it.
+        LOG(LogLevel::DEBUG) << "Waiting for copy worker to finish.";
+        m_worker->wait();
+    }
+
+    event->accept();
+}
+
+void MainWindow::onTogglePause() {
+    if (m_isPaused) {
+        m_worker->resume();
+        m_graph->setPaused(false);
+        m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // Restart the graph movement
+        ui->btnPause->setText("Resume");
+    } else {
+        m_worker->pause();
+        m_graph->setPaused(true);
+        m_graphTimer->stop();     // Freeze the graph movement
+        ui->btnCancel->setText("Pause");
+    }
+    m_isPaused = !m_isPaused;
+}
+
+
+void MainWindow::onError(CopyWorker::FileError err) {
+    // m_graphTimer->stop(); // Stop the graph
+    LOG(LogLevel::DEBUG) << "Error: " + err.path + ": " + err.errorMsg;
+    // m_errorList->setHidden(false);
+    // m_errorList->addItem(err.path + ": " + err.errorMsg);
+    // m_errorList->setStyleSheet("border: 1px solid red;");
+}
+
+
+
 void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedName) {
-    QDialog dialog(this);
+    // PAUSE the graph timer so it doesn't call addSpeedPoint while we are blocked
+    m_graphTimer->stop();
+
+    // 1. No need for manual thread check or invokeMethod. 
+    // The Qt::QueuedConnection in the constructor guarantees this runs on the Main Thread.
+
+    // 2. Use Stack Allocation (No 'new', no pointer)
+    // This guarantees the object exists during exec() and is cleaned up immediately after.
+    QDialog dialog(this); 
     dialog.setWindowTitle("File Conflict");
-    
+
+    // Do NOT set WA_DeleteOnClose when using stack allocation or exec()
+    // dialog.setAttribute(Qt::WA_DeleteOnClose);
+
     QVBoxLayout* layout = new QVBoxLayout(&dialog);
-    
     layout->addWidget(new QLabel("Destination file already exists. Select an action:", &dialog));
-    
+
     // --- Details Grid ---
     QGridLayout* grid = new QGridLayout();
     QFileInfo srcInfo(src);
     QFileInfo destInfo(dest);
-    
+
+    // Helper to format size safely
     auto fmtSize = [](qint64 s) {
-        if (s > 1024*1024*1024) return QString::number(s/(1024.0*1024*1024), 'f', 2) + " GB";
-        if (s > 1024*1024) return QString::number(s/(1024.0*1024), 'f', 2) + " MB";
-        return QString::number(s/1024.0, 'f', 2) + " KB";
+        if (s > 1024 * 1024 * 1024) return QString::number(s / (1024.0 * 1024 * 1024), 'f', 2) + " GB";
+        if (s > 1024 * 1024) return QString::number(s / (1024.0 * 1024), 'f', 2) + " MB";
+        return QString::number(s / 1024.0, 'f', 2) + " KB";
     };
-    
+
+    // Use robust QFileInfo checks (in case file was moved/deleted in background)
+    QString srcDate = srcInfo.exists() ? srcInfo.lastModified().toString() : "Unknown";
+    QString destDate = destInfo.exists() ? destInfo.lastModified().toString() : "Unknown";
+    qint64 srcSize = srcInfo.exists() ? srcInfo.size() : 0;
+    qint64 destSize = destInfo.exists() ? destInfo.size() : 0;
+
     grid->addWidget(new QLabel("<b>Source:</b>"), 0, 0);
     grid->addWidget(new QLabel(src), 0, 1);
-    grid->addWidget(new QLabel(QString("Size: %1").arg(fmtSize(srcInfo.size()))), 1, 1);
-    grid->addWidget(new QLabel(QString("Date: %1").arg(srcInfo.lastModified().toString())), 2, 1);
-    
+    grid->addWidget(new QLabel(QString("Size: %1").arg(fmtSize(srcSize))), 1, 1);
+    grid->addWidget(new QLabel(QString("Date: %1").arg(srcDate)), 2, 1);
+
     grid->addWidget(new QLabel("<b>Destination:</b>"), 3, 0);
     grid->addWidget(new QLabel(dest), 3, 1);
-    grid->addWidget(new QLabel(QString("Size: %1").arg(fmtSize(destInfo.size()))), 4, 1);
-    grid->addWidget(new QLabel(QString("Date: %1").arg(destInfo.lastModified().toString())), 5, 1);
-    
+    grid->addWidget(new QLabel(QString("Size: %1").arg(fmtSize(destSize))), 4, 1);
+    grid->addWidget(new QLabel(QString("Date: %1").arg(destDate)), 5, 1);
+
     layout->addLayout(grid);
-    
+
     // --- Rename Input ---
     QHBoxLayout* renameLayout = new QHBoxLayout();
     renameLayout->addWidget(new QLabel("Rename to:"));
     QLineEdit* renameEdit = new QLineEdit(suggestedName);
     renameLayout->addWidget(renameEdit);
     layout->addLayout(renameLayout);
-    
+
     // --- Controls ---
-    QCheckBox *cb = new QCheckBox("Do this for all conflicts", &dialog);
+    QCheckBox* cb = new QCheckBox("Do this for all conflicts", &dialog);
     layout->addWidget(cb);
-    
-    QDialogButtonBox* buttons = new QDialogButtonBox();
-    QPushButton *replaceBtn = buttons->addButton("Replace", QDialogButtonBox::AcceptRole);
-    QPushButton *skipBtn = buttons->addButton("Skip", QDialogButtonBox::RejectRole);
-    QPushButton *renameBtn = buttons->addButton("Rename", QDialogButtonBox::ActionRole);
-    QPushButton *cancelBtn = buttons->addButton(QDialogButtonBox::Cancel);
+
+    QDialogButtonBox* buttons = new QDialogButtonBox(&dialog);
+    QPushButton* replaceBtn = buttons->addButton("Replace", QDialogButtonBox::AcceptRole);
+    QPushButton* skipBtn = buttons->addButton("Skip", QDialogButtonBox::RejectRole);
+    QPushButton* renameBtn = buttons->addButton("Rename", QDialogButtonBox::ActionRole);
+    QPushButton* cancelBtn = buttons->addButton(QDialogButtonBox::Cancel);
     layout->addWidget(buttons);
-    
+
+    // Default Action
     CopyWorker::ConflictAction action = CopyWorker::Cancel;
-    
-    connect(replaceBtn, &QPushButton::clicked, [&](){ action = CopyWorker::Replace; dialog.accept(); });
-    connect(skipBtn, &QPushButton::clicked, [&](){ action = CopyWorker::Skip; dialog.accept(); });
-    connect(renameBtn, &QPushButton::clicked, [&](){ action = CopyWorker::Rename; dialog.accept(); });
-    connect(cancelBtn, &QPushButton::clicked, [&](){ action = CopyWorker::Cancel; dialog.reject(); });
-    
-    dialog.exec();
-    
+
+    // Connect Buttons
+    // Note: We capture 'dialog' by reference [&dialog] which is safe because 
+    // the lambda runs inside dialog.exec() while the object is alive.
+    connect(replaceBtn, &QPushButton::clicked, [&]() { 
+        action = CopyWorker::Replace; 
+        dialog.accept(); 
+    });
+    connect(skipBtn, &QPushButton::clicked, [&]() { 
+        action = CopyWorker::Skip; 
+        dialog.accept(); 
+    });
+    connect(renameBtn, &QPushButton::clicked, [&]() { 
+        action = CopyWorker::Rename; 
+        dialog.accept(); 
+    });
+    connect(cancelBtn, &QPushButton::clicked, [&]() { 
+        action = CopyWorker::Cancel; 
+        dialog.reject(); 
+    });
+
+    // 3. Execution
+    // This blocks the Main Thread (but event loop keeps running)
+    // Worker Thread is waiting on m_inputWait condition
+    dialog.exec(); 
+
+    // 4. Send Result Back to Worker
+    // The dialog is closed, but 'renameEdit' and 'cb' are still valid 
+    // because they are children of 'dialog' which is still on the stack.
     m_worker->resolveConflict(action, cb->isChecked(), renameEdit->text());
+    
+    // 5. End of function: 'dialog' destructor runs automatically here.
 }
+
 
 void MainWindow::onFinished() {
     m_graphTimer->stop(); // Stop the graph once finished
-    m_statusLabel->setText("Operation Complete.");
-    m_statusActionLabel->setText("Done.");
-    m_pauseBtn->setEnabled(false);
-    m_cancelBtn->setText("Close");
+    LOG(LogLevel::DEBUG) << "Operation Complete.";
+    // m_statusLabel->setText("Operation Complete.");
+    // m_statusActionLabel->setText("Done.");
+    ui->btnPause->setEnabled(false);
+    ui->btnCancel->setText("Close");
     setWindowTitle(m_baseTitle); // Reset title to remove percentage
 }

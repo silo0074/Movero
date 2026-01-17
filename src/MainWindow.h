@@ -13,6 +13,8 @@
 class SpeedGraph : public QWidget {  // Inherits from QWidget
     Q_OBJECT  // Enables Qt meta-object features
 public:
+
+    bool m_update_graph = true;
     // Without explicit, these might be allowed:
     // SpeedGraph graph = someWidget;  // Implicit conversion
     // With explicit, only direct initialization is allowed
@@ -33,9 +35,10 @@ protected:
 
 private:
     std::vector<double> m_history;
+    QMutex m_mutex;
     double m_maxSpeed;
-    double m_peakSpeed = 0.0;
     bool m_isPaused = false;
+
 };
 
 
@@ -50,6 +53,8 @@ public:
     ~MainWindow();
 
 private slots:
+    void onStatusChanged(CopyWorker::Status status);
+    void onTotalProgress(int fileCount, int totalFiles);
     void onTogglePause();
     void onUpdateProgress(QString file, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
     void onError(CopyWorker::FileError err);
@@ -63,21 +68,24 @@ private:
     Ui::MainWindow *ui;
     CopyWorker* m_worker;
     SpeedGraph* m_graph;
-    QLabel* m_statusLabel;
-    QLabel* m_speedLabel;
-    QLabel* m_statusActionLabel;
-    QProgressBar* m_fileProgress;
-    QProgressBar* m_totalProgress;
-    QPushButton* m_pauseBtn;
-    QPushButton* m_cancelBtn;
-    QListWidget* m_errorList;
-    QTimer* m_graphTimer;      // Manages the steady 100ms graph updates
-    double m_smoothedSpeed;    // Holds the EMA (Exponential Moving Average) smoothing filtered speed value
-    bool m_isPaused;
+    QString m_status;
     QString m_currentFile;
-    int m_filePercent;
-    double m_currentSpeed;
-    double m_avgSpeed;
+
+    // Manages the steady 100ms graph updates
+    QTimer* m_graphTimer;
+
     QString m_eta;
     QString m_baseTitle;
+
+    // Holds the EMA (Exponential Moving Average) smoothing filtered speed value
+    double m_smoothedSpeed;
+
+    // std::atomic<double> m_smoothedSpeed{0.0};
+    std::atomic<double> m_currentSpeed{0.0};
+    double m_avgSpeed;
+    int m_totalProgress;
+    int m_filePercent;
+    int m_totalFiles;
+    int m_filesRemaining;
+    bool m_isPaused;
 };

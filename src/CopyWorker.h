@@ -27,7 +27,19 @@ public:
         Rename,
         Cancel
     };
+    
+    enum Status {
+        DryRunGenerating,
+        Scanning,
+        RemovingEmptyFolders,
+        Copying,
+        GeneratingHash,
+        Verifying
+    };
+    Q_ENUM(Status)
 
+    std::atomic<uintmax_t> m_totalSizeToCopy{0}; // Calculated during Scan Phase
+    std::atomic<uintmax_t> m_completedFilesSize{0}; // Size of files fully processed
     CopyWorker(const std::vector<std::string>& sources, const std::string& destDir, Mode mode, QObject* parent = nullptr);
 
     void pause();
@@ -37,7 +49,7 @@ public:
 
 signals:
     void progressChanged(QString file, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
-    void statusChanged(QString status);
+    void statusChanged(Status status);
     void totalProgress(int fileCount, int totalFiles);
     void finished();
     void errorOccurred(FileError error);
@@ -60,12 +72,12 @@ private:
     QWaitCondition m_inputWait;
     ConflictAction m_userAction;
     bool m_applyAll = false;
+    bool m_waitingForUser = false;
     ConflictAction m_savedAction = Replace;
     QString m_userNewName;
 
     std::chrono::steady_clock::time_point m_overallStartTime;
     std::chrono::duration<double> m_totalPausedDuration{0};
-    uintmax_t m_totalSizeToCopy = 0; // Calculated during Scan Phase
     uintmax_t m_totalWorkBytes = 0; // (Size of all files * 2)
     uintmax_t m_totalBytesProcessed = 0; // Global counter
 
