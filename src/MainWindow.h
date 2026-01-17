@@ -56,7 +56,7 @@ private slots:
     void onStatusChanged(CopyWorker::Status status);
     void onTotalProgress(int fileCount, int totalFiles);
     void onTogglePause();
-    void onUpdateProgress(QString file, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
+    void onUpdateProgress(QString src, QString dest, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
     void onError(CopyWorker::FileError err);
     void onFinished();
     void onConflictNeeded(QString src, QString dest, QString suggestedName);
@@ -71,6 +71,7 @@ private:
     SpeedGraph* m_graph;
     QString m_status;
     QString m_currentFile;
+    QString m_currentDest;
 
     // Manages the steady 100ms graph updates
     QTimer* m_graphTimer;

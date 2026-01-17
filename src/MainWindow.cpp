@@ -245,6 +245,11 @@ MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sour
     ui->setupUi(this);
     m_graph = ui->speedGraphWidget;
 
+    // Allow labels to shrink below their text content width
+    // This prevents the window width from being locked by long text
+    ui->labelFrom->setMinimumWidth(0);
+    ui->labelTo->setMinimumWidth(0);
+
     const char* mode_string = (mode == "mv") ? "Moving" : "Copying";
     m_baseTitle = QString(APP_NAME) + " - " + mode_string;
     setWindowTitle(m_baseTitle);
@@ -279,25 +284,43 @@ MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sour
         uint64_t completedBytes = m_worker->m_completedFilesSize;
         uint64_t remainingBytes = (totalBytes > completedBytes) ? (totalBytes - completedBytes) : 0;
 
-        ui->labelCopyingFiles->setText("Copying " + QString::number(m_totalFiles) + 
-                                        " items (" + QString::number(totalBytes / 1024 / 1024) + " MB)");
-        ui->labelETA->setText("ETA: " + m_eta);
-        ui->labelProgress->setText(QString::number(m_totalProgress) + "% complete");
-        ui->labelItems->setText("Items remaining: " + QString::number(m_filesRemaining) + 
-        " (" + QString::number(remainingBytes / 1024 / 1024) + " MB)");
+        double totalSize = (double)totalBytes / 1024 / 1024;
+        QString totalSizeString = QString::number(totalSize) + " MiB";
+        if(totalSize > 1024){
+            totalSize = totalSize / 1024;
+            totalSizeString = QString::number(totalSize, 'f', 2) + " GiB";
+        }
+
+        double remainingSize = (double)remainingBytes / 1024 / 1024;
+        QString remainingSizeString = QString::number(remainingSize) + " MiB";
+        if(remainingSize > 1024){
+            remainingSize = remainingSize / 1024;
+            remainingSizeString = QString::number(remainingSize, 'f', 2) + " GiB";
+        }
         
+        ui->labelCopyingFiles->setText("Copying " + QString::number(m_totalFiles) + 
+                                        " items (" + totalSizeString + ")");
+        ui->labelProgress->setText(QString::number(m_totalProgress) + "% complete");
+        ui->labelETA->setText("ETA: " + m_eta + " (" + QString::number(m_avgSpeed, 'f', 0) + " MiB/s)");
+        
+        QFontMetrics metricsFrom(ui->labelFrom->font());
+        ui->labelFrom->setText(metricsFrom.elidedText("From : " + m_currentFile, Qt::ElideMiddle, ui->labelFrom->width() - 5));
+
+        QFontMetrics metricsTo(ui->labelTo->font());
+        ui->labelTo->setText(metricsTo.elidedText("To: " + m_currentDest, Qt::ElideMiddle, ui->labelTo->width() - 5));
+        
+        ui->labelItems->setText("Items remaining: " + QString::number(m_filesRemaining) + 
+        " (" + remainingSizeString + ")");
+        ui->labelFileProgress->setText(QString::number(m_filePercent) + "%");
+
         // Update Window Title for Taskbar Progress
         // Example: "45% - Movero - cp"
         setWindowTitle(QString("%1% - %2").arg(m_totalProgress).arg(m_baseTitle));
         
         // Update Taskbar / Dock Progress
         updateTaskbarProgress(m_totalProgress);
-
-        // m_statusLabel->setText("File: " + m_currentFile + " AvgSpeed: " + QString::number(m_avgSpeed) + " ETA: " + m_eta);
-        // m_fileProgress->setValue(m_filePercent);
-        // m_speedLabel->setText(QString::number(m_smoothedSpeed, 'f', 1) + " MB/s");
         
-        // m_graph->addSpeedPoint(m_smoothedSpeed);
+        m_graph->addSpeedPoint(m_smoothedSpeed);
         
         // If the worker hasn't sent an update in a while, 
         // we slowly decay the speed so the graph drops to 0.
@@ -306,7 +329,6 @@ MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sour
     m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // 10 updates per second
 
     m_worker->start();
-   
 }
 
 
@@ -327,24 +349,18 @@ MainWindow::~MainWindow() {
 /*----------------------------------------------------------------------
     Updated by copy worker faster than the timer updates the GUI
 ------------------------------------------------------------------------*/
-void MainWindow::onUpdateProgress(QString file, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta) {
-    m_currentFile = file;
+void MainWindow::onUpdateProgress(QString src, QString dest, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta) {
+    m_currentFile = src;
+    m_currentDest = dest;
     m_filePercent = percent;
     m_totalProgress = totalPercent;
     m_currentSpeed = curSpeed;
     m_avgSpeed = avgSpeed;
     m_eta = eta;
 
-    // m_statusLabel->setText("File: " + file + " AvgSpeed: " + QString::number(avgSpeed) + " ETA: " + eta);
-    // m_fileProgress->setValue(percent);
-
     if (curSpeed > 0) {
-    //     // smoothing factor: 0.1 (lower = smoother/slower, higher = jumpier/faster)
-    //     // m_smoothedSpeed = (m_smoothedSpeed * 0.9) + (curSpeed * 0.1);
-        m_smoothedSpeed = (m_smoothedSpeed * 0.5) + (curSpeed * 0.5);
-    
-        // Trigger graph update only when fresh data arrives
-        m_graph->addSpeedPoint(m_smoothedSpeed);
+        // smoothing factor: 0.15 (lower = smoother/slower, higher = jumpier/faster)
+        m_smoothedSpeed = (m_smoothedSpeed * 0.85) + (curSpeed * 0.15);
     }
 }
 
@@ -358,6 +374,8 @@ void MainWindow::onStatusChanged(CopyWorker::Status status){
         case CopyWorker::GeneratingHash: m_status = "Generating Source Hash..."; break;
         case CopyWorker::Verifying: m_status = "Verifying Checksum..."; break;
     }
+
+    ui->labelStatus->setText(m_status);
 }
 
 
@@ -393,12 +411,12 @@ void MainWindow::onTogglePause() {
         m_worker->resume();
         m_graph->setPaused(false);
         m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // Restart the graph movement
-        ui->btnPause->setText("Resume");
+        ui->btnPause->setText("Pause");
     } else {
         m_worker->pause();
         m_graph->setPaused(true);
         m_graphTimer->stop();     // Freeze the graph movement
-        ui->btnPause->setText("Pause");
+        ui->btnPause->setText("Resume");
     }
     m_isPaused = !m_isPaused;
 }
@@ -457,6 +475,7 @@ void MainWindow::onError(CopyWorker::FileError err) {
 
     QString logMsg = err.path.isEmpty() ? msg : (err.path + ": " + msg);
     LOG(LogLevel::DEBUG) << "Error: " + logMsg;
+    ui->labelStatus->setText(logMsg);
 }
 
 
@@ -570,6 +589,11 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
     // The dialog is closed, but 'renameEdit' and 'cb' are still valid 
     // because they are children of 'dialog' which is still on the stack.
     m_worker->resolveConflict(action, cb->isChecked(), renameEdit->text());
+
+    // Resume the graph timer if we are continuing
+    if (action != CopyWorker::Cancel) {
+        m_graphTimer->start(Config::UPDATE_INTERVAL_MS);
+    }
     
     // 5. End of function: 'dialog' destructor runs automatically here.
 }

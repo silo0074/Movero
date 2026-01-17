@@ -63,7 +63,7 @@ public:
     void resolveConflict(ConflictAction action, bool applyToAll, QString newName = "");
 
 signals:
-    void progressChanged(QString file, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
+    void progressChanged(QString src, QString dest, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
     void statusChanged(Status status);
     void totalProgress(int fileCount, int totalFiles);
     void finished();
@@ -105,7 +105,7 @@ private:
     const size_t BUFFER_SIZE = Config::BUFFER_SIZE;
     
     bool copyFile(const std::filesystem::path& src, const std::filesystem::path& dest);
-    bool verifyFile(const std::filesystem::path& path, uint64_t expectedHash);
-    void updateProgress(const std::filesystem::path& path, qint64 totalRead, qint64 fileSize, 
+    bool verifyFile(const std::filesystem::path& src, const std::filesystem::path& dest, uint64_t expectedHash);
+    void updateProgress(const std::filesystem::path& src, const std::filesystem::path& dest, qint64 totalRead, qint64 fileSize, 
                         qint64& lastBytesRead, std::chrono::steady_clock::time_point& lastSampleTime);
 };

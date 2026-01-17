@@ -85,7 +85,7 @@ static fs::path generateAutoRename(const fs::path& path) {
     }
 }
 
-void CopyWorker::updateProgress(const fs::path& path, qint64 fileRead, qint64 fileSize, 
+void CopyWorker::updateProgress(const fs::path& src, const fs::path& dest, qint64 fileRead, qint64 fileSize, 
                                 qint64& lastBytesRead, std::chrono::steady_clock::time_point& lastSampleTime) {
     auto now = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsedSinceLast = now - lastSampleTime;
@@ -114,7 +114,8 @@ void CopyWorker::updateProgress(const fs::path& path, qint64 fileRead, qint64 fi
     // Pass the instantaneous speed for the graph, and avg/eta for the labels
     double curMbps = ((fileRead - lastBytesRead) / (1024.0 * 1024.0)) / elapsedSinceLast.count();
     
-    emit progressChanged(QString::fromStdString(path.filename().string()), 
+    emit progressChanged(QString::fromStdString(src.string()), 
+                        QString::fromStdString(dest.string()), 
                         filePercent, totalPercent, curMbps, avgMbps, etaStr);
 
     lastSampleTime = now;
@@ -411,7 +412,7 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
         m_totalBytesProcessed += bytesRead;
 
         // Calculate and update speed
-        updateProgress(src, totalRead, fileSize, lastBytesRead, lastSampleTime);
+        updateProgress(src, dest, totalRead, fileSize, lastBytesRead, lastSampleTime);
     }
 
     // --- CLEANUP & CHECK PHASE ---
@@ -445,7 +446,8 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
 
     // Force 100% and reset speed graph after copying
     int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
-    emit progressChanged(QString::fromStdString(src.filename().string()), 
+    emit progressChanged(QString::fromStdString(src.string()), 
+                        QString::fromStdString(dest.string()), 
                         100, totalPercent, 0.0, 0.0, "");
 
     // Open the file again briefly just to invalidate the cache for it
@@ -457,7 +459,7 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
     }
     
     // Verify Phase (Read from disk)
-    if (!verifyFile(dest, srcHash)) {
+    if (!verifyFile(src, dest, srcHash)) {
         LOG(LogLevel::DEBUG) << "Verification failed=" << dest.string();
         // Verification failed or was cancelled during verification
         try { fs::remove(dest); } catch(...) {}
@@ -468,18 +470,18 @@ bool CopyWorker::copyFile(const fs::path& src, const fs::path& dest) {
 }
 
 
-bool CopyWorker::verifyFile(const fs::path& path, uint64_t expectedHash) {
+bool CopyWorker::verifyFile(const fs::path& src, const fs::path& dest, uint64_t expectedHash) {
     emit statusChanged(Verifying); // Update UI status
 
     // Open with O_DIRECT to bypass OS cache entirely
     // O_DIRECT: This forces the read to bypass the OS Page Cache, 
     // ensuring the checksum is calculated against the actual bits on the physical media.
-    int fd = open(path.c_str(), O_RDONLY | O_DIRECT);
+    int fd = open(dest.c_str(), O_RDONLY | O_DIRECT);
     
     // Fallback: Some filesystems/OSs don't support O_DIRECT
     // For simplicity and compatibility, we use posix_fadvise(DONTNEED) to urge reading from disk.
     if (fd < 0) {
-        fd = open(path.c_str(), O_RDONLY);
+        fd = open(dest.c_str(), O_RDONLY);
         if (fd >= 0) {
             // If O_DIRECT failed, we try to clear the cache so we read from disk
             // POSIX_FADV_DONTNEED in the fallback path: This attempts to clear the cache 
@@ -521,7 +523,7 @@ bool CopyWorker::verifyFile(const fs::path& path, uint64_t expectedHash) {
     auto startTime = std::chrono::steady_clock::now();
     auto lastSampleTime = startTime;
     qint64 lastBytesRead = 0;
-    qint64 fileSize = fs::file_size(path);
+    qint64 fileSize = fs::file_size(dest);
     qint64 totalRead = 0;
 
     while (totalRead < fileSize) {
@@ -562,12 +564,13 @@ bool CopyWorker::verifyFile(const fs::path& path, uint64_t expectedHash) {
         totalRead += n;
         m_totalBytesProcessed += n;
 
-        updateProgress(path, totalRead, fileSize, lastBytesRead, lastSampleTime);
+        updateProgress(src, dest, totalRead, fileSize, lastBytesRead, lastSampleTime);
     }
 
     // Force 100% and reset speed graph after verification
     int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
-    emit progressChanged(QString::fromStdString(path.filename().string()), 
+    emit progressChanged(QString::fromStdString(src.string()), 
+                        QString::fromStdString(dest.string()), 
                         100, totalPercent, 0.0, 0.0, "");
 
     uint64_t diskHash = XXH64_digest(state);
@@ -575,7 +578,7 @@ bool CopyWorker::verifyFile(const fs::path& path, uint64_t expectedHash) {
     close(fd);
 
     if (diskHash != expectedHash) {
-        emit errorOccurred({ChecksumMismatch, QString::fromStdString(path.string())});
+        emit errorOccurred({ChecksumMismatch, QString::fromStdString(dest.string())});
         return false;
     }
     return true;

@@ -10,7 +10,7 @@ namespace Config {
     inline constexpr char DEVELOPER[] = "Liviu Istrate";
     
     // UI constants
-    inline constexpr int SPEED_GRAPH_MIN_HEIGHT = 220;
+    inline constexpr int SPEED_GRAPH_MIN_HEIGHT = 300;
 
     // Speed graph timer update 
     inline constexpr int UPDATE_INTERVAL_MS = 100;
