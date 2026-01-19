@@ -6,171 +6,264 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>548</width>
-    <height>383</height>
+    <width>676</width>
+    <height>830</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1,0,0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,2">
    <item>
-    <widget class="QLabel" name="labelCopyingFiles">
-     <property name="text">
-      <string>Copying n items (size)</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="hlProgress">
+    <layout class="QVBoxLayout" name="verticalLayout_5" stretch="0,0,1,0,0,0,0">
      <item>
-      <widget class="QLabel" name="labelProgress">
-       <property name="font">
-        <font>
-         <pointsize>14</pointsize>
-        </font>
-       </property>
+      <widget class="QLabel" name="labelCopyingFiles">
        <property name="text">
-        <string>n% complete</string>
+        <string>Copying 0 items (0 MB)</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QLabel" name="labelETA">
-       <property name="font">
-        <font>
-         <pointsize>14</pointsize>
-        </font>
+      <layout class="QHBoxLayout" name="hlProgress">
+       <item>
+        <widget class="QLabel" name="labelProgress">
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>0% complete</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="labelETA">
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>ETA: 00:00:00 (MB/s avg)</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QFrame" name="frameSpeedGraph">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
        </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Shape::Box</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Shadow::Plain</enum>
+       </property>
+       <property name="lineWidth">
+        <number>1</number>
+       </property>
+       <property name="midLineWidth">
+        <number>1</number>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0">
+        <item>
+         <widget class="SpeedGraph" name="speedGraphWidget" native="true">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>150</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="labelFrom">
        <property name="text">
-        <string>ETA: 00:00:00 (MiB/s avg)</string>
+        <string>From:</string>
        </property>
       </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="labelTo">
+       <property name="text">
+        <string>To:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0,0,0">
+       <item>
+        <widget class="QLabel" name="labelItems">
+         <property name="text">
+          <string>Items remaining: 0 (0 MB)</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="labelFileProgress">
+         <property name="text">
+          <string>0%</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnPause">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Maximum">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>Pause</string>
+         </property>
+         <property name="text">
+          <string>Pause</string>
+         </property>
+         <property name="icon">
+          <iconset theme="QIcon::ThemeIcon::MediaPlaybackPause"/>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnCancel">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Maximum">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>Cancel</string>
+         </property>
+         <property name="text">
+          <string>Cancel</string>
+         </property>
+         <property name="icon">
+          <iconset theme="QIcon::ThemeIcon::ListRemove"/>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <widget class="QLabel" name="labelStatus">
+         <property name="text">
+          <string>Status</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnShowBottomPanel">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>30</width>
+           <height>20</height>
+          </size>
+         </property>
+         <property name="toolTip">
+          <string>Show more</string>
+         </property>
+         <property name="text">
+          <string>▼</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>
    <item>
-    <widget class="QFrame" name="frameSpeedGraph">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>0</height>
-      </size>
-     </property>
-     <property name="frameShape">
-      <enum>QFrame::Shape::Box</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Shadow::Plain</enum>
-     </property>
-     <property name="lineWidth">
-      <number>1</number>
-     </property>
-     <property name="midLineWidth">
-      <number>1</number>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayout_2">
-      <item>
-       <widget class="SpeedGraph" name="speedGraphWidget" native="true">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
+    <layout class="QVBoxLayout" name="verticalLayout_3">
+     <item>
+      <widget class="QTabWidget" name="tabWidget">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <widget class="QWidget" name="tab">
+        <property name="enabled">
+         <bool>true</bool>
         </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
+        <attribute name="title">
+         <string>Tab 1</string>
+        </attribute>
+        <layout class="QVBoxLayout" name="verticalLayout_4" stretch="1,0">
+         <item>
+          <widget class="QTreeWidget" name="treeWidget">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <attribute name="headerStretchLastSection">
+            <bool>false</bool>
+           </attribute>
+           <column>
+            <property name="text">
+             <string notr="true">1</string>
+            </property>
+           </column>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnClearHistory">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string>Clear History</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLabel" name="labelFrom">
-     <property name="text">
-      <string>From:</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLabel" name="labelTo">
-     <property name="text">
-      <string>To:</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0,0,0">
-     <item>
-      <widget class="QLabel" name="labelItems">
-       <property name="text">
-        <string>Items remaining: n (size)</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="labelFileProgress">
-       <property name="text">
-        <string>n%</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="btnPause">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Maximum">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="toolTip">
-        <string>Pause</string>
-       </property>
-       <property name="text">
-        <string>Pause</string>
-       </property>
-       <property name="icon">
-        <iconset theme="QIcon::ThemeIcon::MediaPlaybackPause"/>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="btnCancel">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Maximum">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="toolTip">
-        <string>Cancel</string>
-       </property>
-       <property name="text">
-        <string>Cancel</string>
-       </property>
-       <property name="icon">
-        <iconset theme="QIcon::ThemeIcon::ListRemove"/>
-       </property>
+       <widget class="QWidget" name="tab_2">
+        <attribute name="title">
+         <string>Tab 2</string>
+        </attribute>
+       </widget>
       </widget>
      </item>
     </layout>
-   </item>
-   <item>
-    <widget class="QLabel" name="labelStatus">
-     <property name="text">
-      <string>Status</string>
-     </property>
-    </widget>
    </item>
   </layout>
  </widget>

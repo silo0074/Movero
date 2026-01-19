@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     app.setDesktopFileName(QString(APP_NAME) + ".desktop");
 
     LOG(LogLevel::INFO) << APP_NAME << "started.";
-    LOG(LogLevel::INFO) << "Version" << APP_VERSION;
+    LOG(LogLevel::INFO) << "Version" << APP_VERSION;  
 
     // Arguments: Movero [cp|mv]
     QString mode = "cp";
@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
     if (argc > 2) destDir = argv[2];
     
     // sourceFiles.push_back("/run/media/me/D_TOSHIBA_S300/Projects/stepperCon library.mp4");
-    sourceFiles.push_back("/run/media/me/D_TOSHIBA_S300/Active/Săptămîna nebunilor (1971).mkv");
+    sourceFiles.push_back("/run/media/me/D_TOSHIBA_S300/Projects/Movero/build/raja_-_na_bali_alex_ortega_remix_music_electro_2014_(z3.fm).mp3");
     destDir = "/run/media/me/D_TOSHIBA_S300/Projects/Movero/build";
     MainWindow w(mode, sourceFiles, destDir);
     w.show();

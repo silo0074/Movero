@@ -21,6 +21,7 @@
 #include "ui_MainWindow.h"
 #include "Config.h"
 #include "LogHelper.h"
+#include "DetailsWindow.h"
 
 // --- SpeedGraph Implementation ---
 // Initializes members BEFORE constructor body executes
@@ -71,14 +72,14 @@ void SpeedGraph::paintEvent(QPaintEvent*) {
     p.setRenderHint(QPainter::Antialiasing);
 
     // Color definitions based on state
-    QColor mainColor = m_isPaused ? QColor(255, 140, 0) : QColor(0, 180, 0);       // Orange vs Green
-    QColor gradientTop = m_isPaused ? QColor(255, 165, 0, 100) : QColor(0, 255, 0, 100);
+    QColor mainColor(m_isPaused ? Config::COLOR_GRAPH_PAUSED : Config::COLOR_GRAPH_ACTIVE);
+    QColor gradientTop(m_isPaused ? Config::COLOR_GRAPH_GRADIENT_PAUSED : Config::COLOR_GRAPH_GRADIENT_ACTIVE);
 
-    // 1. Define margins for labels
-    const int leftMargin = 70;    // Space for "300 MiB/s" labels
-    const int rightMargin = 20;   
+    // Define margins for labels
+    const int leftMargin = Config::SPEED_GRAPH_ALIGN_LABELS_RIGHT ? 10 : 70;
+    const int rightMargin = Config::SPEED_GRAPH_ALIGN_LABELS_RIGHT ? 70 : 20;
     const int topMargin = 20;
-    const int bottomMargin = 30;  // Space for "-20s" labels
+    const int bottomMargin = Config::SPEED_GRAPH_SHOW_TIME_LABELS ? 30 : 5;
 
     int w = width();
     int h = height();
@@ -103,7 +104,7 @@ void SpeedGraph::paintEvent(QPaintEvent*) {
         int y = gridRect.top() + (gridRect.height() / 4) * i;
         
         // Draw Grid Line
-        p.setPen(QPen(QColor(200, 200, 200, 100), 1, Qt::DashLine));
+        p.setPen(QPen(QColor(Config::COLOR_GRAPH_GRID), 1, Qt::DashLine));
         p.drawLine(gridRect.left(), y, gridRect.right(), y);
         
         // Calculate Speed for this line (i=0 is Top/Max, i=4 is Bottom/0)
@@ -111,76 +112,82 @@ void SpeedGraph::paintEvent(QPaintEvent*) {
         QString speedLabel = formatSpeed(speedAtLine);
 
         // Draw Speed Label on the left
-        p.setPen(Qt::gray);
-        p.drawText(5, y + 4, speedLabel); 
+        p.setPen(QColor(Config::COLOR_GRAPH_TEXT));
+        if (Config::SPEED_GRAPH_ALIGN_LABELS_RIGHT) {
+            p.drawText(w - rightMargin + 5, y + 4, speedLabel);
+        } else {
+            p.drawText(5, y + 4, speedLabel);
+        }
     }
     
     // Draw Time Scale (X-Axis Labels)
-    // Calculate total duration based on the actual update frequency of the UI graph
-    double totalSeconds = ((m_history.size() - 1) * Config::UPDATE_INTERVAL_MS) / 1000.0;
-    if (totalSeconds <= 0) totalSeconds = 1.0;
+    if (Config::SPEED_GRAPH_SHOW_TIME_LABELS) {
+        // Calculate total duration based on the actual update frequency of the UI graph
+        double totalSeconds = ((m_history.size() - 1) * Config::UPDATE_INTERVAL_MS) / 1000.0;
+        if (totalSeconds <= 0) totalSeconds = 1.0;
 
-    // Calculate pixels per second based on current window width (Scalable GUI)
-    double pixelsPerSecond = gridRect.width() / totalSeconds;
-    
-    // Dynamic interval calculation: ensure labels don't overlap (min 60px apart)
-    double minPixelsPerLabel = 60.0;
-    double minInterval = minPixelsPerLabel / pixelsPerSecond;
-
-    // Select a "nice" interval (1s, 2s, 5s, 10s, 15s, 30s, 60s...)
-    int intervalSeconds = 1;
-    int niceIntervals[] = {1, 2, 5, 10, 15, 30, 60, 120, 300};
-    for (int val : niceIntervals) {
-        if (val >= minInterval) {
-            intervalSeconds = val;
-            break;
-        }
-    }
-
-    p.setPen(Qt::gray);
-
-    // Helper lambda to draw a tick and label
-    auto drawTick = [&](double timeVal) {
-        double x = gridRect.right() - (timeVal * pixelsPerSecond);
+        // Calculate pixels per second based on current window width (Scalable GUI)
+        double pixelsPerSecond = gridRect.width() / totalSeconds;
         
-        // Draw tick
-        p.drawLine(x, gridRect.bottom(), x, gridRect.bottom() + 5);
+        // Dynamic interval calculation: ensure labels don't overlap (min 60px apart)
+        double minPixelsPerLabel = 60.0;
+        double minInterval = minPixelsPerLabel / pixelsPerSecond;
 
-        // Format Label
-        QString timeLabel;
-        int tInt = static_cast<int>(timeVal + 0.5);
-        
-        if (timeVal < 0.1) timeLabel = "0s";
-        else if (tInt < 60) timeLabel = QString("-%1s").arg(tInt);
-        else {
-            int m = tInt / 60;
-            int s = tInt % 60;
-            if (s == 0) timeLabel = QString("-%1m").arg(m);
-            else timeLabel = QString("-%1m %2s").arg(m).arg(s);
+        // Select a "nice" interval (1s, 2s, 5s, 10s, 15s, 30s, 60s...)
+        int intervalSeconds = 1;
+        int niceIntervals[] = {1, 2, 5, 10, 15, 30, 60, 120, 300};
+        for (int val : niceIntervals) {
+            if (val >= minInterval) {
+                intervalSeconds = val;
+                break;
+            }
         }
 
-        // Draw Text
-        float textWidth = p.fontMetrics().horizontalAdvance(timeLabel);
-        double textX = x - (textWidth / 2);
+        p.setPen(QColor(Config::COLOR_GRAPH_TEXT));
 
-        // Clamp to widget bounds to ensure 0s and Max are visible
-        if (textX + textWidth > w) textX = w - textWidth - 2;
-        if (textX < 0) textX = 2;
+        // Helper lambda to draw a tick and label
+        auto drawTick = [&](double timeVal) {
+            double x = gridRect.right() - (timeVal * pixelsPerSecond);
+            
+            // Draw tick
+            p.drawLine(x, gridRect.bottom(), x, gridRect.bottom() + 5);
 
-        p.drawText(textX, h - 5, timeLabel);
-    };
+            // Format Label
+            QString timeLabel;
+            int tInt = static_cast<int>(timeVal + 0.5);
+            
+            if (timeVal < 0.1) timeLabel = "0s";
+            else if (tInt < 60) timeLabel = QString("-%1s").arg(tInt);
+            else {
+                int m = tInt / 60;
+                int s = tInt % 60;
+                if (s == 0) timeLabel = QString("-%1m").arg(m);
+                else timeLabel = QString("-%1m %2s").arg(m).arg(s);
+            }
 
-    // Always draw the Max History label (Leftmost)
-    drawTick(totalSeconds);
+            // Draw Text
+            float textWidth = p.fontMetrics().horizontalAdvance(timeLabel);
+            double textX = x - (textWidth / 2);
 
-    // Draw 0s and intermediates
-    // Stop if we get too close to the Max label (approx 50px clearance) to avoid overlap
-    double leftThreshold = gridRect.left() + 50;
+            // Clamp to widget bounds to ensure 0s and Max are visible
+            if (textX + textWidth > w) textX = w - textWidth - 2;
+            if (textX < 0) textX = 2;
 
-    for (int t = 0; t < static_cast<int>(totalSeconds); t += intervalSeconds) {
-        double x = gridRect.right() - (t * pixelsPerSecond);
-        if (x < leftThreshold) break;
-        drawTick(static_cast<double>(t));
+            p.drawText(textX, h - 5, timeLabel);
+        };
+
+        // Always draw the Max History label (Leftmost)
+        drawTick(totalSeconds);
+
+        // Draw 0s and intermediates
+        // Stop if we get too close to the Max label (approx 50px clearance) to avoid overlap
+        double leftThreshold = gridRect.left() + 50;
+
+        for (int t = 0; t < static_cast<int>(totalSeconds); t += intervalSeconds) {
+            double x = gridRect.right() - (t * pixelsPerSecond);
+            if (x < leftThreshold) break;
+            drawTick(static_cast<double>(t));
+        }
     }
     
     // Create and Draw the Path (Data)
@@ -236,30 +243,51 @@ QString SpeedGraph::formatSpeed(double mbps) {
 MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sources, const std::string& dest, QWidget *parent)
 : QWidget(parent), 
     ui(new Ui::MainWindow), 
-    m_isPaused(false), 
+    m_isPaused(false),
     m_smoothedSpeed(0.0),
     m_totalFiles(0), 
-    m_filesRemaining(0)
+    m_filesRemaining(0),
+    m_filePercent(0),
+    m_totalProgress(0),
+    m_currentSpeed(0.0),
+    m_avgSpeed(0.0)
 {
-
     ui->setupUi(this);
     m_graph = ui->speedGraphWidget;
+
+    // Initialize DetailsWindow with the tree widget from MainWindow.ui
+    m_detailsWindow = new DetailsWindow(ui->treeWidget, this);
+    connect(ui->btnClearHistory, &QPushButton::clicked, m_detailsWindow, &DetailsWindow::clearHistory);
+    m_detailsWindow->loadHistory();
+
+    // Save source folder
+    QString source = QString::fromStdString(sources[0]);
+    QFileInfo info(QDir::cleanPath(source));
+    m_sourceFolder = info.absolutePath();
+    
+    // Save destination folder
+    m_destFolder = QString::fromStdString(dest);
+
+    LOG(LogLevel::DEBUG) << "Source folder: " << m_sourceFolder;
+    LOG(LogLevel::DEBUG) << "Destination folder: " << m_destFolder;
+
+
+    // Set window title
+    m_modeString = (mode == "mv") ? QStringLiteral("Moving") : QStringLiteral("Copying");
+    m_baseTitle = QStringLiteral(APP_NAME) + " - " + m_modeString;
+    setWindowTitle(m_baseTitle);
 
     // Allow labels to shrink below their text content width
     // This prevents the window width from being locked by long text
     ui->labelFrom->setMinimumWidth(0);
     ui->labelTo->setMinimumWidth(0);
-
-    const char* mode_string = (mode == "mv") ? "Moving" : "Copying";
-    m_baseTitle = QString(APP_NAME) + " - " + mode_string;
-    setWindowTitle(m_baseTitle);
-
-    ui->labelCopyingFiles->setText("Copying 0 items (0 MB)");
-    ui->labelProgress->setText("0% complete");
-    ui->labelETA->setText("ETA: 00:00:00");
-    ui->labelFrom->setText("From: none");
-    ui->labelTo->setText("To: none");
-    ui->labelItems->setText("Items remaining: none (0 MB)");
+    ui->tabWidget->hide();
+    this->adjustSize();
+    this->resize(Config::WINDOW_WIDTH, this->height());
+    m_collapsedHeight = this->height(); // Save current size
+    m_expandedHeight = Config::WINDOW_HEIGHT_EXPANDED;
+    LOG(LogLevel::DEBUG) << "m_collapsedHeight: " << m_collapsedHeight;
+  
 
     CopyWorker::Mode workerMode = (mode == "mv") ? CopyWorker::Move : CopyWorker::Copy;
     m_worker = new CopyWorker(sources, dest, workerMode, this);
@@ -273,58 +301,14 @@ MainWindow::MainWindow(const QString& mode, const std::vector<std::string>& sour
 
     connect(ui->btnPause, &QPushButton::clicked, this, &MainWindow::onTogglePause);
     connect(ui->btnCancel, &QPushButton::clicked, this, &MainWindow::close);
+    connect(ui->btnShowBottomPanel, &QPushButton::clicked, this, &MainWindow::onToggleDetails);
 
     // Update GUI
     // Bad: Capturing [&] (everything by reference) is dangerous for timers
     // Good: Capture [this] and check pointers
     m_graphTimer = new QTimer(this);
     connect(m_graphTimer, &QTimer::timeout, this, [this]() {
-        if (!m_graph) return;
-        uint64_t totalBytes = m_worker->m_totalSizeToCopy;
-        uint64_t completedBytes = m_worker->m_completedFilesSize;
-        uint64_t remainingBytes = (totalBytes > completedBytes) ? (totalBytes - completedBytes) : 0;
-
-        double totalSize = (double)totalBytes / 1024 / 1024;
-        QString totalSizeString = QString::number(totalSize) + " MiB";
-        if(totalSize > 1024){
-            totalSize = totalSize / 1024;
-            totalSizeString = QString::number(totalSize, 'f', 2) + " GiB";
-        }
-
-        double remainingSize = (double)remainingBytes / 1024 / 1024;
-        QString remainingSizeString = QString::number(remainingSize) + " MiB";
-        if(remainingSize > 1024){
-            remainingSize = remainingSize / 1024;
-            remainingSizeString = QString::number(remainingSize, 'f', 2) + " GiB";
-        }
-        
-        ui->labelCopyingFiles->setText("Copying " + QString::number(m_totalFiles) + 
-                                        " items (" + totalSizeString + ")");
-        ui->labelProgress->setText(QString::number(m_totalProgress) + "% complete");
-        ui->labelETA->setText("ETA: " + m_eta + " (" + QString::number(m_avgSpeed, 'f', 0) + " MiB/s)");
-        
-        QFontMetrics metricsFrom(ui->labelFrom->font());
-        ui->labelFrom->setText(metricsFrom.elidedText("From : " + m_currentFile, Qt::ElideMiddle, ui->labelFrom->width() - 5));
-
-        QFontMetrics metricsTo(ui->labelTo->font());
-        ui->labelTo->setText(metricsTo.elidedText("To: " + m_currentDest, Qt::ElideMiddle, ui->labelTo->width() - 5));
-        
-        ui->labelItems->setText("Items remaining: " + QString::number(m_filesRemaining) + 
-        " (" + remainingSizeString + ")");
-        ui->labelFileProgress->setText(QString::number(m_filePercent) + "%");
-
-        // Update Window Title for Taskbar Progress
-        // Example: "45% - Movero - cp"
-        setWindowTitle(QString("%1% - %2").arg(m_totalProgress).arg(m_baseTitle));
-        
-        // Update Taskbar / Dock Progress
-        updateTaskbarProgress(m_totalProgress);
-        
-        m_graph->addSpeedPoint(m_smoothedSpeed);
-        
-        // If the worker hasn't sent an update in a while, 
-        // we slowly decay the speed so the graph drops to 0.
-        m_smoothedSpeed *= 0.9;
+        updateProgressUi();
     });
     m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // 10 updates per second
 
@@ -342,6 +326,10 @@ MainWindow::~MainWindow() {
         m_worker->wait(); // Ensure the thread is dead before we delete 'ui'
     }
     
+    if (m_detailsWindow) {
+        delete m_detailsWindow;
+    }
+
     delete ui;
 }
 
@@ -360,7 +348,11 @@ void MainWindow::onUpdateProgress(QString src, QString dest, int percent, int to
 
     if (curSpeed > 0) {
         // smoothing factor: 0.15 (lower = smoother/slower, higher = jumpier/faster)
-        m_smoothedSpeed = (m_smoothedSpeed * 0.85) + (curSpeed * 0.15);
+        m_smoothedSpeed = (m_smoothedSpeed * 0.95) + (curSpeed * 0.05);
+    }
+
+    if (percent == 100) {
+        logHistory(src, "");
     }
 }
 
@@ -376,12 +368,13 @@ void MainWindow::onStatusChanged(CopyWorker::Status status){
     }
 
     ui->labelStatus->setText(m_status);
+    LOG(LogLevel::DEBUG) << "onStatusChanged: " << m_status;
 }
 
 
 void MainWindow::onTotalProgress(int fileCount, int totalFiles){
-    m_filesRemaining = fileCount;
     m_totalFiles = totalFiles;
+    m_filesRemaining = totalFiles - fileCount;
 }
 
 
@@ -406,6 +399,18 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     event->accept();
 }
 
+
+// void MainWindow::moveEvent(QMoveEvent *event) {
+//     QWidget::moveEvent(event); // Call base class logic
+    
+//     // Move the details window only if it exists, is visible, and WE are the ones moving
+//     if (m_detailsWindow && m_detailsWindow->isVisible() && m_isOffsetInitialized) {
+//         // Apply the stored offset to the new main window position
+//         m_detailsWindow->move(this->pos() + m_relativeOffset);
+//     }
+// }
+
+
 void MainWindow::onTogglePause() {
     if (m_isPaused) {
         m_worker->resume();
@@ -419,31 +424,6 @@ void MainWindow::onTogglePause() {
         ui->btnPause->setText("Resume");
     }
     m_isPaused = !m_isPaused;
-}
-
-void MainWindow::updateTaskbarProgress(int percent) {
-    // Clamp percentage
-    if (percent < 0) percent = 0;
-    if (percent > 100) percent = 100;
-
-    // Unity Launcher API (Supported by Ubuntu Dock, Dash to Dock, KDE Task Manager)
-    // We broadcast a signal that the Dock listens to.
-    
-    QVariantMap properties;
-    properties.insert("progress", percent / 100.0);
-    properties.insert("progress-visible", (percent > 0 && percent < 100));
-    
-    // URI must match the desktop file name set in main.cpp
-    QString uri = "application://" + QCoreApplication::applicationName() + ".desktop";
-
-    QDBusMessage message = QDBusMessage::createSignal(
-        "/com/canonical/Unity/LauncherEntry", 
-        "com.canonical.Unity.LauncherEntry", 
-        "Update"
-    );
-    
-    message << uri << properties;
-    QDBusConnection::sessionBus().send(message);
 }
 
 
@@ -476,6 +456,7 @@ void MainWindow::onError(CopyWorker::FileError err) {
     QString logMsg = err.path.isEmpty() ? msg : (err.path + ": " + msg);
     LOG(LogLevel::DEBUG) << "Error: " + logMsg;
     ui->labelStatus->setText(logMsg);
+    if (!err.path.isEmpty()) logHistory(err.path, msg);
 }
 
 
@@ -599,13 +580,182 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
 }
 
 
+void MainWindow::onToggleDetails() {
+    bool isVisible = false;
+
+    // Capture the CURRENT width so we don't lose the user's manual resizing
+    int currentWidth = this->width();
+
+    if (ui->tabWidget->isVisible()) {
+        // --- HIDING (Collapsing) ---
+        m_expandedHeight = this->height(); // remember the full height
+        ui->tabWidget->hide();
+        this->adjustSize(); // let the layout recalc the new size
+        this->resize(currentWidth, m_collapsedHeight);
+
+    } else {
+        // --- SHOWING (Expanding) ---
+        ui->tabWidget->show();
+        ui->treeWidget->header()->doItemsLayout();
+
+        // Restore the saved height while maintaining the current width
+        if (m_expandedHeight > 0) this->resize(currentWidth, m_expandedHeight);
+    }
+
+    // if (m_detailsWindow->isVisible()) {
+    //     m_detailsWindow->hide();
+    // } else {
+    //     if(m_isOffsetInitialized == false){
+    //         // Position below the main window
+    //         QRect mainRect = this->frameGeometry();
+    //         QScreen *screen = this->screen();
+    //         if (!screen) screen = QGuiApplication::primaryScreen();
+    //         QRect screenRect = screen->availableGeometry();
+
+    //         m_detailsWindow->ensurePolished();
+    //         if (m_detailsWindow->height() < 10) m_detailsWindow->adjustSize();
+
+    //         int h = m_detailsWindow->frameGeometry().height();
+    //         int spacing = 30;
+    //         int y = mainRect.bottom() + spacing;
+
+    //         // If not enough space beneath, move main window up
+    //         if (y + h > screenRect.bottom()) {
+    //             int overflow = (y + h) - screenRect.bottom();
+    //             int newMainY = mainRect.y() - overflow;
+    //             if (newMainY < screenRect.top()) newMainY = screenRect.top();
+                
+    //             this->move(mainRect.x(), newMainY);
+    //             y = newMainY + mainRect.height() + spacing;
+    //         }
+
+    //         m_detailsWindow->move(mainRect.x(), y);
+    //         m_relativeOffset = m_detailsWindow->pos() - this->pos();
+    //         m_isOffsetInitialized = true;
+    //     }
+
+    //     m_detailsWindow->show();
+    //     isVisible = true;
+    // }
+    
+    ui->btnShowBottomPanel->setText(isVisible ? "▲" : "▼");
+}
+
+
 void MainWindow::onFinished() {
+    LOG(LogLevel::DEBUG) << "Done.";
+    updateProgressUi();
     m_graphTimer->stop(); // Stop the graph once finished
     updateTaskbarProgress(0); // Clear progress bar
-    LOG(LogLevel::DEBUG) << "Operation Complete.";
-    // m_statusLabel->setText("Operation Complete.");
-    // m_statusActionLabel->setText("Done.");
+    setWindowTitle(m_baseTitle); // Reset title to remove percentage
+    ui->labelStatus->setText("Done.");
     ui->btnPause->setEnabled(false);
     ui->btnCancel->setText("Close");
-    setWindowTitle(m_baseTitle); // Reset title to remove percentage
+
+    // Save history
+    if (!m_jobHistory.isEmpty()) {
+
+        if (m_detailsWindow) {
+            QString currentTime = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+            m_detailsWindow->setSourceDest(m_sourceFolder, m_destFolder);
+            m_detailsWindow->addHistoryEntry(currentTime, m_modeString, m_jobHistory);
+            m_jobHistory.clear();
+            m_loggedFiles.clear();
+        }
+    }
+
+    if (Config::CLOSE_ON_FINISH) {
+        close();
+    }
+}
+
+
+void MainWindow::updateTaskbarProgress(int percent) {
+    // Clamp percentage
+    if (percent < 0) percent = 0;
+    if (percent > 100) percent = 100;
+
+    // Unity Launcher API (Supported by Ubuntu Dock, Dash to Dock, KDE Task Manager)
+    // We broadcast a signal that the Dock listens to.
+    
+    QVariantMap properties;
+    properties.insert("progress", percent / 100.0);
+    properties.insert("progress-visible", (percent > 0 && percent < 100));
+    
+    // URI must match the desktop file name set in main.cpp
+    QString uri = "application://" + QCoreApplication::applicationName() + ".desktop";
+
+    QDBusMessage message = QDBusMessage::createSignal(
+        "/com/canonical/Unity/LauncherEntry", 
+        "com.canonical.Unity.LauncherEntry", 
+        "Update"
+    );
+    
+    message << uri << properties;
+    QDBusConnection::sessionBus().send(message);
+}
+
+
+void MainWindow::updateProgressUi() {
+    uint64_t totalBytes = m_worker->m_totalSizeToCopy;
+    uint64_t completedBytes = m_worker->m_completedFilesSize;
+    uint64_t remainingBytes = (totalBytes > completedBytes) ? (totalBytes - completedBytes) : 0;
+
+    auto formatSize = [](uint64_t bytes) -> QString {
+        double val = static_cast<double>(bytes);
+        if (val < 1024.0) return QString::number(val, 'f', 0) + " B";
+        val /= 1024.0;
+        if (val < 1024.0) return QString::number(val, 'f', 2) + " KiB";
+        val /= 1024.0;
+        if (val < 1024.0) return QString::number(val, 'f', 2) + " MiB";
+        val /= 1024.0;
+        return QString::number(val, 'f', 2) + " GiB";
+    };
+
+    QString totalSizeString = formatSize(totalBytes);
+    QString remainingSizeString = formatSize(remainingBytes);
+    
+    ui->labelCopyingFiles->setText("Copying " + QString::number(m_totalFiles) + 
+                                    " items (" + totalSizeString + ")");
+    ui->labelProgress->setText(QString::number(m_totalProgress) + "% complete");
+    ui->labelETA->setText("ETA: " + m_eta + " (" + QString::number(m_avgSpeed, 'f', 0) + " MiB/s)");
+    
+    QFontMetrics metricsFrom(ui->labelFrom->font());
+    ui->labelFrom->setText(metricsFrom.elidedText("From : " + m_currentFile, Qt::ElideMiddle, ui->labelFrom->width() - 5));
+
+    QFontMetrics metricsTo(ui->labelTo->font());
+    ui->labelTo->setText(metricsTo.elidedText("To: " + m_currentDest, Qt::ElideMiddle, ui->labelTo->width() - 5));
+    
+    ui->labelItems->setText("Items remaining: " + QString::number(m_filesRemaining) + 
+    " (" + remainingSizeString + ")");
+    ui->labelFileProgress->setText(QString::number(m_filePercent) + "%");
+
+    // Update Window Title for Taskbar Progress
+    setWindowTitle(QString("%1% - %2").arg(m_totalProgress).arg(m_baseTitle));
+    
+    // Update Taskbar / Dock Progress
+    updateTaskbarProgress(m_totalProgress);
+    
+    if(m_graph) m_graph->addSpeedPoint(m_smoothedSpeed);
+    
+    // Decay speed
+    m_smoothedSpeed *= 0.9;
+}
+
+
+void MainWindow::logHistory(const QString& path, const QString& error) {
+    // If we already logged this file (e.g. as success), update it if we now have an error
+    if (m_loggedFiles.contains(path)) {
+        for (auto& entry : m_jobHistory) {
+            if (entry.path == path) {
+                if (!error.isEmpty()) {
+                    entry.error = error;
+                }
+                return;
+            }
+        }
+    }
+    // Otherwise add new entry
+    m_jobHistory.append({path, error});
+    m_loggedFiles.insert(path);
 }

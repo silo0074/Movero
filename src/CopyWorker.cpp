@@ -141,7 +141,10 @@ void CopyWorker::run() {
 
         for (const auto& srcStr : m_sources) {
             fs::path srcRoot(srcStr);
-            if (!fs::exists(srcRoot)) continue;
+            if (!fs::exists(srcRoot)){
+                emit errorOccurred({ErrorType::SourceOpenFailed, QString::fromStdString(srcStr)});
+                continue;
+            }
             
             fs::path base = srcRoot.parent_path();
             
@@ -168,25 +171,25 @@ void CopyWorker::run() {
     
     // PHASE 1.5: Verify Available Space
     uintmax_t safetyMargin = Config::DISK_SPACE_SAFETY_MARGIN; 
-    try {
-        fs::space_info destSpace = fs::space(m_destDir);
+    // try {
+    //     fs::space_info destSpace = fs::space(m_destDir);
         
-        // Add a safety margin to account for filesystem overhead/metadata
-        if (destSpace.available < (totalBytesRequired + safetyMargin)) {
-            double reqGB = totalBytesRequired / (1024.0 * 1024.0 * 1024.0);
-            double availGB = destSpace.available / (1024.0 * 1024.0 * 1024.0);
+    //     // Add a safety margin to account for filesystem overhead/metadata
+    //     if (destSpace.available < (totalBytesRequired + safetyMargin)) {
+    //         double reqGB = totalBytesRequired / (1024.0 * 1024.0 * 1024.0);
+    //         double availGB = destSpace.available / (1024.0 * 1024.0 * 1024.0);
             
-            emit errorOccurred({
-                DiskFull, 
-                "", 
-                QString("%1|%2").arg(reqGB, 0, 'f', 2).arg(availGB, 0, 'f', 2)
-            });
-            return; // Terminate before starting
-        }
-    } catch (const fs::filesystem_error& e) {
-        emit errorOccurred({DriveCheckFailed, "", ""});
-        return;
-    }
+    //         emit errorOccurred({
+    //             DiskFull, 
+    //             "", 
+    //             QString("%1|%2").arg(reqGB, 0, 'f', 2).arg(availGB, 0, 'f', 2)
+    //         });
+    //         return; // Terminate before starting
+    //     }
+    // } catch (const fs::filesystem_error& e) {
+    //     emit errorOccurred({DriveCheckFailed, "", ""});
+    //     return;
+    // }
 
     
     // PHASE 2: Execute Tasks

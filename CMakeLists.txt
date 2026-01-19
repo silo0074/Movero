@@ -32,12 +32,14 @@ set(SOURCES
     src/main.cpp
     src/MainWindow.cpp
     src/CopyWorker.cpp
+    src/DetailsWindow.cpp
     src/MainWindow.ui
 )
 
 set(HEADERS
     src/MainWindow.h
     src/CopyWorker.h
+    src/DetailsWindow.h
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})

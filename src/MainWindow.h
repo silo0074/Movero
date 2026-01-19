@@ -7,8 +7,10 @@
 #include <QListWidget>
 #include <QTimer>
 #include <QCloseEvent>
+#include <QSet>
 
 #include "CopyWorker.h"
+#include "DetailsWindow.h"
 
 class SpeedGraph : public QWidget {  // Inherits from QWidget
     Q_OBJECT  // Enables Qt meta-object features
@@ -29,13 +31,13 @@ public:
             update(); // Redraw with new colors
         }
     }
+
 protected:
     // Override the paint event to custom draw the graph
     void paintEvent(QPaintEvent* event) override;
 
 private:
     std::vector<double> m_history;
-    QMutex m_mutex;
     double m_maxSpeed;
     bool m_isPaused = false;
 
@@ -63,15 +65,39 @@ private slots:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+    // void moveEvent(QMoveEvent *event) override;
 
 private:
+    void logHistory(const QString& path, const QString& error = "");
     void updateTaskbarProgress(int percent);
+    void onToggleDetails();
+    void updateProgressUi();
+    
+    // void clearHistory();
+    // QString m_sourceFolder;
+    // QString m_destFolder;
+    // QString getHistoryPath() const;
+    // void addPathToTree(QTreeWidgetItem *parent, const QString &fullPath, const QString &error);
+    // void saveHistoryEntry(const QString &timestamp, const QString &mode, const QList<HistoryEntry> &entries);
+    // void loadHistory();
+
+    int m_expandedHeight;
+    int m_collapsedHeight;
+
+    QPoint m_relativeOffset;
+    bool m_isOffsetInitialized = false;
     Ui::MainWindow *ui;
+    DetailsWindow* m_detailsWindow = nullptr;
+    QList<HistoryEntry> m_jobHistory;
+    QSet<QString> m_loggedFiles;
     CopyWorker* m_worker;
     SpeedGraph* m_graph;
     QString m_status;
     QString m_currentFile;
     QString m_currentDest;
+    QString m_sourceFolder;
+    QString m_destFolder;
+    QString m_modeString;
 
     // Manages the steady 100ms graph updates
     QTimer* m_graphTimer;
@@ -82,7 +108,6 @@ private:
     // Holds the EMA (Exponential Moving Average) smoothing filtered speed value
     double m_smoothedSpeed;
 
-    // std::atomic<double> m_smoothedSpeed{0.0};
     std::atomic<double> m_currentSpeed{0.0};
     double m_avgSpeed;
     int m_totalProgress;

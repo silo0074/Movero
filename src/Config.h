@@ -10,10 +10,24 @@ namespace Config {
     inline constexpr char DEVELOPER[] = "Liviu Istrate";
     
     // UI constants
+    inline constexpr int WINDOW_WIDTH = 600;
+    inline constexpr int WINDOW_HEIGHT_EXPANDED = 800;
     inline constexpr int SPEED_GRAPH_MIN_HEIGHT = 300;
 
     // Speed graph timer update 
     inline constexpr int UPDATE_INTERVAL_MS = 100;
+
+    // Speed Graph Visuals
+    inline constexpr bool SPEED_GRAPH_SHOW_TIME_LABELS = true;
+    inline constexpr bool SPEED_GRAPH_ALIGN_LABELS_RIGHT = false; // false = left, true = right
+
+    // Colors (AARRGGBB format for QColor)
+    inline constexpr unsigned int COLOR_GRAPH_ACTIVE = 0xFF00B400;       // Green
+    inline constexpr unsigned int COLOR_GRAPH_PAUSED = 0xFFFF8C00;       // Orange
+    inline constexpr unsigned int COLOR_GRAPH_GRADIENT_ACTIVE = 0x6400FF00; // Green with alpha
+    inline constexpr unsigned int COLOR_GRAPH_GRADIENT_PAUSED = 0x64FFA500; // Orange with alpha
+    inline constexpr unsigned int COLOR_GRAPH_GRID = 0x64C8C8C8;         // Light Gray with alpha
+    inline constexpr unsigned int COLOR_GRAPH_TEXT = 0xFF808080;         // Gray
 
     // 200 points will represent 20 seconds of history at 10Hz (200 * 0.1s)
     // History = SPEED_GRAPH_HISTORY_SIZE * (UPDATE_INTERVAL_MS / 1000.0)
@@ -46,4 +60,7 @@ namespace Config {
     inline constexpr double SPEED_UPDATE_INTERVAL = 0.05; // 50ms (20Hz)
     // 50MB default
     inline constexpr uintmax_t DISK_SPACE_SAFETY_MARGIN = 50 * 1024 * 1024;
+
+    // Auto-close window when finished
+    inline constexpr bool CLOSE_ON_FINISH = false;
 }
