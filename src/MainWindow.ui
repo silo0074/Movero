@@ -25,7 +25,7 @@
      <item>
       <widget class="QLabel" name="labelCopyingFiles">
        <property name="text">
-        <string>Copying 0 items (0 MB)</string>
+        <string>Copying 0 of 0 files</string>
        </property>
       </widget>
      </item>
@@ -51,7 +51,7 @@
           </font>
          </property>
          <property name="text">
-          <string>ETA: 00:00:00 (MB/s avg)</string>
+          <string>Remaining: 00:00:00 (MB/s avg)</string>
          </property>
         </widget>
        </item>
@@ -122,7 +122,7 @@
        <item>
         <widget class="QLabel" name="labelItems">
          <property name="text">
-          <string>Items remaining: 0 (0 MB)</string>
+          <string>0 MB of 0 MB</string>
          </property>
         </widget>
        </item>
@@ -231,12 +231,34 @@
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="alternatingRowColors">
+            <bool>false</bool>
+           </property>
+           <property name="selectionBehavior">
+            <enum>QAbstractItemView::SelectionBehavior::SelectItems</enum>
+           </property>
+           <property name="columnCount">
+            <number>3</number>
+           </property>
+           <attribute name="headerVisible">
+            <bool>true</bool>
+           </attribute>
            <attribute name="headerStretchLastSection">
             <bool>false</bool>
            </attribute>
            <column>
             <property name="text">
              <string notr="true">1</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string notr="true">2</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string notr="true">3</string>
             </property>
            </column>
           </widget>

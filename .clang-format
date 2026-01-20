@@ -1,0 +1,25 @@
+Language: Cpp
+BasedOnStyle: LLVM
+
+# Indentation
+UseTab: Always
+TabWidth: 8
+IndentWidth: 8
+
+# Force formatting to handle long lines correctly with tabs
+ContinuationIndentWidth: 8
+AlignAfterOpenBracket: DontAlign
+
+# Fix the Brace rules
+BreakBeforeBraces: Attach
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+
+# Keep your code style
+ColumnLimit: 0
+NamespaceIndentation: All

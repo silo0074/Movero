@@ -1,118 +1,117 @@
 #pragma once
 
-#include <QWidget>
-#include <QPushButton>
-#include <QProgressBar>
+#include <QCloseEvent>
 #include <QLabel>
 #include <QListWidget>
-#include <QTimer>
-#include <QCloseEvent>
+#include <QProgressBar>
+#include <QPushButton>
 #include <QSet>
+#include <QTimer>
+#include <QWidget>
 
 #include "CopyWorker.h"
 #include "DetailsWindow.h"
 
-class SpeedGraph : public QWidget {  // Inherits from QWidget
-    Q_OBJECT  // Enables Qt meta-object features
-public:
+class SpeedGraph : public QWidget { // Inherits from QWidget
+      Q_OBJECT			    // Enables Qt meta-object features
+	      public :
 
-    bool m_update_graph = true;
-    // Without explicit, these might be allowed:
-    // SpeedGraph graph = someWidget;  // Implicit conversion
-    // With explicit, only direct initialization is allowed
-    // SpeedGraph graph(someWidget);
-    explicit SpeedGraph(QWidget* parent = nullptr);
-    void addSpeedPoint(double mbps);
-    QString formatSpeed(double mbps);
+	  bool m_update_graph = true;
+	// Without explicit, these might be allowed:
+	// SpeedGraph graph = someWidget;  // Implicit conversion
+	// With explicit, only direct initialization is allowed
+	// SpeedGraph graph(someWidget);
+	explicit SpeedGraph(QWidget *parent = nullptr);
+	void addSpeedPoint(double mbps);
+	QString formatSpeed(double mbps);
 
-    void setPaused(bool paused) {
-        if (m_isPaused != paused) {
-            m_isPaused = paused;
-            update(); // Redraw with new colors
-        }
-    }
+	void setPaused(bool paused) {
+		if (m_isPaused != paused) {
+			m_isPaused = paused;
+			update(); // Redraw with new colors
+		}
+	}
 
-protected:
-    // Override the paint event to custom draw the graph
-    void paintEvent(QPaintEvent* event) override;
+      protected:
+	// Override the paint event to custom draw the graph
+	void paintEvent(QPaintEvent *event) override;
 
-private:
-    std::vector<double> m_history;
-    double m_maxSpeed;
-    bool m_isPaused = false;
-
+      private:
+	std::vector<double> m_history;
+	double m_maxSpeed;
+	bool m_isPaused = false;
 };
 
-
 namespace Ui {
-class MainWindow;
+	class MainWindow;
 }
 
 class MainWindow : public QWidget {
-    Q_OBJECT
-public:
-    explicit MainWindow(const QString& mode, const std::vector<std::string>& sources, const std::string& dest, QWidget *parent = nullptr);
-    ~MainWindow();
+	Q_OBJECT
+      public:
+	explicit MainWindow(const QString &mode, const std::vector<std::string> &sources, const std::string &dest, QWidget *parent = nullptr);
+	~MainWindow();
 
-private slots:
-    void onStatusChanged(CopyWorker::Status status);
-    void onTotalProgress(int fileCount, int totalFiles);
-    void onTogglePause();
-    void onUpdateProgress(QString src, QString dest, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
-    void onError(CopyWorker::FileError err);
-    void onFinished();
-    void onConflictNeeded(QString src, QString dest, QString suggestedName);
+      private slots:
+	void onStatusChanged(CopyWorker::Status status);
+	void onTotalProgress(int fileCount, int totalFiles);
+	void onTogglePause();
+	void onUpdateProgress(QString src, QString dest, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
+	void onError(CopyWorker::FileError err);
+	void onFinished();
+	void onConflictNeeded(QString src, QString dest, QString suggestedName);
+	void onFileCompleted(QString path, QString srcHash, QString destHash);
 
-protected:
-    void closeEvent(QCloseEvent *event) override;
-    // void moveEvent(QMoveEvent *event) override;
+      protected:
+	void closeEvent(QCloseEvent *event) override;
+	// void moveEvent(QMoveEvent *event) override;
 
-private:
-    void logHistory(const QString& path, const QString& error = "");
-    void updateTaskbarProgress(int percent);
-    void onToggleDetails();
-    void updateProgressUi();
-    
-    // void clearHistory();
-    // QString m_sourceFolder;
-    // QString m_destFolder;
-    // QString getHistoryPath() const;
-    // void addPathToTree(QTreeWidgetItem *parent, const QString &fullPath, const QString &error);
-    // void saveHistoryEntry(const QString &timestamp, const QString &mode, const QList<HistoryEntry> &entries);
-    // void loadHistory();
+      private:
+	void logHistory(const QString &path, const QString &error = "", const QString &srcHash = "", const QString &destHash = "");
+	void updateTaskbarProgress(int percent);
+	void onToggleDetails();
+	void updateProgressUi();
 
-    int m_expandedHeight;
-    int m_collapsedHeight;
+	// void clearHistory();
+	// QString m_sourceFolder;
+	// QString m_destFolder;
+	// QString getHistoryPath() const;
+	// void addPathToTree(QTreeWidgetItem *parent, const QString &fullPath, const QString &error);
+	// void saveHistoryEntry(const QString &timestamp, const QString &mode, const QList<HistoryEntry> &entries);
+	// void loadHistory();
 
-    QPoint m_relativeOffset;
-    bool m_isOffsetInitialized = false;
-    Ui::MainWindow *ui;
-    DetailsWindow* m_detailsWindow = nullptr;
-    QList<HistoryEntry> m_jobHistory;
-    QSet<QString> m_loggedFiles;
-    CopyWorker* m_worker;
-    SpeedGraph* m_graph;
-    QString m_status;
-    QString m_currentFile;
-    QString m_currentDest;
-    QString m_sourceFolder;
-    QString m_destFolder;
-    QString m_modeString;
+	int m_expandedHeight;
+	int m_collapsedHeight;
 
-    // Manages the steady 100ms graph updates
-    QTimer* m_graphTimer;
+	QPoint m_relativeOffset;
+	bool m_isOffsetInitialized = false;
+	Ui::MainWindow *ui;
+	DetailsWindow *m_detailsWindow = nullptr;
+	QList<HistoryEntry> m_jobHistory;
+	QSet<QString> m_loggedFiles;
+	CopyWorker *m_worker;
+	SpeedGraph *m_graph;
+	QString m_status;
+	QString m_currentFile;
+	QString m_currentDest;
+	QString m_sourceFolder;
+	QString m_destFolder;
+	QString m_modeString;
 
-    QString m_eta;
-    QString m_baseTitle;
+	// Manages the steady 100ms graph updates
+	QTimer *m_graphTimer;
 
-    // Holds the EMA (Exponential Moving Average) smoothing filtered speed value
-    double m_smoothedSpeed;
+	QString m_eta;
+	QString m_baseTitle;
 
-    std::atomic<double> m_currentSpeed{0.0};
-    double m_avgSpeed;
-    int m_totalProgress;
-    int m_filePercent;
-    int m_totalFiles;
-    int m_filesRemaining;
-    bool m_isPaused;
+	// Holds the EMA (Exponential Moving Average) smoothing filtered speed value
+	double m_smoothedSpeed;
+
+	std::atomic<double> m_currentSpeed{0.0};
+	double m_avgSpeed;
+	int m_totalProgress;
+	int m_filePercent;
+	int m_totalFiles;
+	int m_filesRemaining;
+	bool m_isPaused;
 };

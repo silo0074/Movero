@@ -13,5 +13,20 @@
     ],
     "files.associations": {
         "CMakeLists.txt": "cmake"
-    }
+    },
+    "spellright.language": [
+        "en-US-10-1."
+    ],
+    "spellright.documentTypes": [
+        "javascript",
+        "typescript",
+        "python",
+        "c",
+        "csharp",
+        "java",
+        "markdown",
+        "plaintext",
+        "jsonc",
+        "cpp"
+    ]
 }

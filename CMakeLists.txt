@@ -31,13 +31,17 @@ pkg_check_modules(XXHASH REQUIRED libxxhash)
 set(SOURCES
     src/main.cpp
     src/MainWindow.cpp
+    src/Settings.cpp
+    src/Config.cpp
     src/CopyWorker.cpp
     src/DetailsWindow.cpp
     src/MainWindow.ui
+    src/Settings.ui
 )
 
 set(HEADERS
     src/MainWindow.h
+    src/Settings.h
     src/CopyWorker.h
     src/DetailsWindow.h
 )

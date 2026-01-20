@@ -1,21 +1,22 @@
 #include <QApplication>
 #include <QClipboard>
+#include <QDir>
+#include <QMessageBox>
 #include <QMimeData>
 #include <QUrl>
-#include <QMessageBox>
-#include <QDir>
 #include <iostream>
 
-#include "MainWindow.h"
 #include "Config.h"
 #include "LogHelper.h"
+#include "MainWindow.h"
+#include "Settings.h"
 
 using std::cout;
 using std::endl;
 
-// OpenSuse
-// sudo zypper install cmake gcc-c++ mold lld xxhash-devel \
-qt6-base-devel qt6-widgets-devel
+// OpenSuse is my operating system
+// sudo zypper install CMake gcc-c++ mold lld xxhash-devel \
+// qt6-base-devel qt6-widgets-devel
 
 // Ubuntu
 // sudo apt update
@@ -27,72 +28,83 @@ qt6-base-devel qt6-widgets-devel
 // cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=mold" ..
 // make -j$(nproc)
 
-
-
 int main(int argc, char *argv[]) {
-    QApplication app(argc, argv);
-    app.setApplicationName(APP_NAME);
-    app.setDesktopFileName(QString(APP_NAME) + ".desktop");
+	QApplication app(argc, argv);
+	app.setOrganizationName(APP_NAME);
+	app.setApplicationName(APP_NAME);
+	app.setDesktopFileName(QString(APP_NAME) + ".desktop");
 
-    LOG(LogLevel::INFO) << APP_NAME << "started.";
-    LOG(LogLevel::INFO) << "Version" << APP_VERSION;  
+	Config::load();
 
-    // Arguments: Movero [cp|mv]
-    QString mode = "cp";
-    if (argc > 1) mode = QString(argv[1]);
+	LOG(LogLevel::INFO) << APP_NAME << "started.";
+	LOG(LogLevel::INFO) << "Version" << APP_VERSION;
 
-    if (mode == "help") {
-        cout << "Version " << APP_VERSION << endl;
-        cout << "Usage: " << APP_NAME << " [cp|mv] [dest dir]" << endl;
-        return 0;
-    }
-    
-    if ((mode != "cp") && (mode != "mv")) {
-        cout << "Incorrect arguments." << endl;
-        cout << "Usage: " << APP_NAME << " [cp|mv] [dest dir]" << endl;
-        return 1;
-    }
+	QString mode;
+	QString destDir;
 
-    std::vector<std::string> sourceFiles;
-    if(Config::DRY_RUN == false){
-        // Get Clipboard Data
-        const QClipboard *clipboard = QApplication::clipboard();
-        const QMimeData *mimeData = clipboard->mimeData();
+	// Improved Argument Parsing
+	if (argc > 1) {
+		QString arg1 = QString(argv[1]);
+		if (arg1 == "settings") {
+			Settings s;
+			s.exec();
+			return 0;
+		} else if (arg1 == "cp" || arg1 == "mv") {
+			mode = arg1;
+			if (argc > 2)
+				destDir = QString(argv[2]);
+		} else if (arg1 == "help" || arg1 == "--help") {
+			cout << "Usage: " << "Copy contents to clipboard" << endl;
+			cout << "       " << APP_NAME << " [cp|mv] [dest dir]" << endl;
+			cout << "       " << APP_NAME << " settings" << endl;
+			return 0;
+		} else {
+			cout << "Unknown argument: " << arg1.toStdString() << endl;
+			return 1;
+		}
+	} else {
+		cout << "No arguments provided." << endl;
+		return 1;
+	}
 
-        if (mimeData->hasUrls()) {
-            QList<QUrl> urlList = mimeData->urls();
-            for (const QUrl& url : urlList) {
-                if (url.isLocalFile()) {
-                    sourceFiles.push_back(url.toLocalFile().toStdString());
-                }
-            }
-        } else {
-            LOG(LogLevel::DEBUG) << "No clipboard data found.";
-        }
+	std::vector<std::string> sourceFiles;
+	if (Config::DRY_RUN == false) {
+		// Get Clipboard Data
+		const QClipboard *clipboard = QApplication::clipboard();
+		const QMimeData *mimeData = clipboard->mimeData();
 
-        if (sourceFiles.empty()) {
-            QMessageBox::warning(nullptr, "Error", "No files found in clipboard!");
-            // return 1;
-        }
-    }
-    
-    // Prompt user for destination if not provided (Simplification: Use CWD or Picker)
-    // For Service Menus, the destination is usually the folder you right-clicked IN.
-    // However, Dolphin usually passes the selected files as args, not the destination.
-    // Assuming the app is triggered inside the destination folder, we use CWD.
-    // Alternatively, we open a FileDialog to pick destination.
-    
-    // For this implementation, we assume the user right-clicked "Paste here" equivalent.
-    std::string destDir = QDir::currentPath().toStdString();
-    
-    // If triggered via arguments, you might pass dest as argv[2]
-    if (argc > 2) destDir = argv[2];
-    
-    // sourceFiles.push_back("/run/media/me/D_TOSHIBA_S300/Projects/stepperCon library.mp4");
-    sourceFiles.push_back("/run/media/me/D_TOSHIBA_S300/Projects/Movero/build/raja_-_na_bali_alex_ortega_remix_music_electro_2014_(z3.fm).mp3");
-    destDir = "/run/media/me/D_TOSHIBA_S300/Projects/Movero/build";
-    MainWindow w(mode, sourceFiles, destDir);
-    w.show();
+		if (mimeData->hasUrls()) {
+			QList<QUrl> urlList = mimeData->urls();
+			for (const QUrl &url : urlList) {
+				if (url.isLocalFile()) {
+					sourceFiles.push_back(url.toLocalFile().toStdString());
+				}
+			}
+		} else {
+			LOG(LogLevel::DEBUG) << "No clipboard data found.";
+		}
 
-    return app.exec();
+		if (sourceFiles.empty()) {
+			QMessageBox::warning(nullptr, "Error", "No files found in clipboard!");
+			return 1;
+		}
+	}
+
+	if (destDir.isEmpty()) {
+		LOG(LogLevel::DEBUG) << "No destination directory provided.";
+		QMessageBox::warning(nullptr, "Error", "No destination directory provided!");
+		return 1;
+	}
+
+	QDir dest(destDir);
+	if (!dest.exists()) {
+		LOG(LogLevel::DEBUG) << "Destination directory does not exist:" << destDir;
+		QMessageBox::warning(nullptr, "Error", "Destination directory does not exist!");
+		return 1;
+	}
+
+	MainWindow w(mode, sourceFiles, destDir.toStdString());
+	w.show();
+
+	return app.exec();
 }
