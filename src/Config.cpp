@@ -8,7 +8,8 @@ namespace Config {
 		CHECKSUM_ENABLED = s.value("checksumEnabled", true).toBool();
 		SPEED_GRAPH_SHOW_TIME_LABELS = s.value("graphShowTime", true).toBool();
 		SPEED_GRAPH_ALIGN_LABELS_RIGHT = s.value("graphAlignRight", false).toBool();
-		SPEED_GRAPH_HISTORY_SIZE = s.value("graphHistorySize", 200).toInt();
+		SPEED_GRAPH_HISTORY_SIZE_USER = s.value("graphHistorySize", 200).toInt();
+		SPEED_GRAPH_HISTORY_SIZE = SPEED_GRAPH_HISTORY_SIZE_USER;
 		SPEED_GRAPH_MAX_SPEED = s.value("graphMaxSpeed", 10.0).toDouble();
 		CLOSE_ON_FINISH = s.value("closeOnFinish", false).toBool();
 	}
@@ -19,7 +20,7 @@ namespace Config {
 		s.setValue("checksumEnabled", CHECKSUM_ENABLED);
 		s.setValue("graphShowTime", SPEED_GRAPH_SHOW_TIME_LABELS);
 		s.setValue("graphAlignRight", SPEED_GRAPH_ALIGN_LABELS_RIGHT);
-		s.setValue("graphHistorySize", SPEED_GRAPH_HISTORY_SIZE);
+		s.setValue("graphHistorySize", SPEED_GRAPH_HISTORY_SIZE_USER);
 		s.setValue("graphMaxSpeed", SPEED_GRAPH_MAX_SPEED);
 		s.setValue("closeOnFinish", CLOSE_ON_FINISH);
 	}

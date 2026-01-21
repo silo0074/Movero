@@ -2,6 +2,7 @@
 // #include <iostream>
 #include <QDateTime>
 #include <QRegularExpression>
+#include <algorithm>
 #include <cstdlib>
 #include <fcntl.h>
 #include <memory>
@@ -203,6 +204,16 @@ void CopyWorker::run() {
 	m_totalSizeToCopy = totalBytesRequired;
 	m_totalWorkBytes = totalBytesRequired * (Config::CHECKSUM_ENABLED ? 2 : 1); // Copying + Optional Verifying
 	m_completedFilesSize = 0;
+
+	// Adjust graph history size for small files to avoid empty looking graph
+	// Heuristic: 1 MB per point. Min 50 points (5 seconds).
+	int calculatedPoints = m_totalWorkBytes / (1024 * 1024) / 10;
+	int minPoints = 10;
+	Config::SPEED_GRAPH_HISTORY_SIZE = std::min(Config::SPEED_GRAPH_HISTORY_SIZE_USER, std::max(minPoints, calculatedPoints));
+	LOG(LogLevel::DEBUG) << "m_totalWorkBytes: " << m_totalWorkBytes;
+	LOG(LogLevel::DEBUG) << "calculatedPoints: " << calculatedPoints;
+	LOG(LogLevel::DEBUG) << "SPEED_GRAPH_HISTORY_SIZE:" << std::max(minPoints, calculatedPoints);
+
 	m_totalBytesCopied = 0;
 
 	// Emit total files to copy

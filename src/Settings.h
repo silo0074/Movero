@@ -1,18 +1,24 @@
 #pragma once
 
-#include <QDialog>
+#include <QWidget>
 
 namespace Ui {
-class Settings;
+	class Settings;
 }
 
-class Settings : public QDialog {
-    Q_OBJECT
+class MainWindow;
+
+class Settings : public QWidget {
+	Q_OBJECT
 
 public:
-    explicit Settings(QWidget *parent = nullptr);
-    ~Settings();
+	explicit Settings(QWidget *parent = nullptr);
+	~Settings();
 
 private:
-    Ui::Settings *ui;
+	Ui::Settings *ui;
+	MainWindow *m_previewWindow = nullptr;
+
+	void onTestModeToggled(bool checked);
+	void updatePreview();
 };

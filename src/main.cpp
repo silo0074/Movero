@@ -30,7 +30,7 @@ using std::endl;
 
 int main(int argc, char *argv[]) {
 	QApplication app(argc, argv);
-	app.setOrganizationName(APP_NAME);
+	// app.setOrganizationName(APP_NAME);
 	app.setApplicationName(APP_NAME);
 	app.setDesktopFileName(QString(APP_NAME) + ".desktop");
 
@@ -38,17 +38,21 @@ int main(int argc, char *argv[]) {
 
 	LOG(LogLevel::INFO) << APP_NAME << "started.";
 	LOG(LogLevel::INFO) << "Version" << APP_VERSION;
+	QString arg1 = QString(argv[1]);
+	LOG(LogLevel::INFO) << "arg1: " << arg1;
 
 	QString mode;
 	QString destDir;
+	OperationMode op;
 
 	// Improved Argument Parsing
 	if (argc > 1) {
 		QString arg1 = QString(argv[1]);
 		if (arg1 == "settings") {
-			Settings s;
-			s.exec();
-			return 0;
+			Settings *dlg = new Settings(nullptr);
+			dlg->setAttribute(Qt::WA_DeleteOnClose); // Clean up memory when closed
+			dlg->show();
+			return app.exec();
 		} else if (arg1 == "cp" || arg1 == "mv") {
 			mode = arg1;
 			if (argc > 2)
@@ -103,7 +107,12 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	MainWindow w(mode, sourceFiles, destDir.toStdString());
+	if (arg1 == "cp")
+		op = OperationMode::Copy;
+	else if (arg1 == "mv")
+		op = OperationMode::Move;
+
+	MainWindow w(op, sourceFiles, destDir.toStdString());
 	w.show();
 
 	return app.exec();

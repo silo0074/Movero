@@ -11,6 +11,13 @@
         "--clang-tidy",
         "--header-insertion=never"
     ],
+	"cmake.debugConfig": {
+        "args": ["settings"]
+    },
+	// "editor.tabSize": 4,
+    // "editor.insertSpaces": false,
+    // "editor.detectIndentation": false,
+    // "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
     "files.associations": {
         "CMakeLists.txt": "cmake"
     },
@@ -28,5 +35,8 @@
         "plaintext",
         "jsonc",
         "cpp"
+    ],
+    "cSpell.words": [
+        "Dont"
     ]
 }

@@ -76,14 +76,36 @@ void DetailsWindow::addHistoryEntry(const QString &timestamp, const QString &mod
 
 	// Add File items
 	for (const auto &entry : entries) {
-		addPathToTree(jobItem, entry.path, entry.error, entry.srcHash, entry.destHash);
+		addPathToTree(m_treeWidget, jobItem, entry.path, entry.error, entry.srcHash, entry.destHash);
 	}
 
-	jobItem->setExpanded(true);
+	// jobItem->setExpanded(true);
 
 	// Save to JSON
 	if (saveToFile)
 		saveHistoryEntry(timestamp, mode, entries);
+}
+
+void DetailsWindow::populateErrorTree(QTreeWidget *tree, const QList<HistoryEntry> &entries) {
+	if (!tree)
+		return;
+
+	tree->clear();
+	tree->setHeaderLabels({"File", "Source Hash", "Dest Hash"});
+	tree->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+	tree->header()->setStretchLastSection(false);
+
+	QTreeWidgetItem *root = new QTreeWidgetItem(tree);
+	root->setText(0, "Errors");
+	root->setFont(0, QFont("Arial", 10, QFont::Bold));
+	root->setIcon(0, tree->style()->standardIcon(QStyle::SP_MessageBoxWarning));
+	root->setExpanded(true);
+
+	for (const auto &entry : entries) {
+		if (!entry.error.isEmpty()) {
+			addPathToTree(tree, root, entry.path, entry.error, entry.srcHash, entry.destHash);
+		}
+	}
 }
 
 QString DetailsWindow::getHistoryPath() const {
@@ -92,8 +114,8 @@ QString DetailsWindow::getHistoryPath() const {
 	return dir + "/history.json";
 }
 
-void DetailsWindow::addPathToTree(QTreeWidgetItem *parent, const QString &fullPath, const QString &error, const QString &srcHash, const QString &destHash) {
-	if (!m_treeWidget)
+void DetailsWindow::addPathToTree(QTreeWidget *tree, QTreeWidgetItem *parent, const QString &fullPath, const QString &error, const QString &srcHash, const QString &destHash) {
+	if (!tree)
 		return;
 
 	QDir directory(m_sourceFolder);
@@ -115,9 +137,9 @@ void DetailsWindow::addPathToTree(QTreeWidgetItem *parent, const QString &fullPa
 			current = new QTreeWidgetItem(current);
 			current->setText(0, parts[i]);
 			if (i == parts.size() - 1)
-				current->setIcon(0, m_treeWidget->style()->standardIcon(QStyle::SP_FileIcon));
+				current->setIcon(0, tree->style()->standardIcon(QStyle::SP_FileIcon));
 			else
-				current->setIcon(0, m_treeWidget->style()->standardIcon(QStyle::SP_DirIcon));
+				current->setIcon(0, tree->style()->standardIcon(QStyle::SP_DirIcon));
 		}
 
 		// If it's the last part (the file) and has an error
@@ -129,7 +151,7 @@ void DetailsWindow::addPathToTree(QTreeWidgetItem *parent, const QString &fullPa
 			QTreeWidgetItem *errItem = new QTreeWidgetItem(current);
 			errItem->setText(0, "Error: " + error);
 			errItem->setForeground(0, Qt::red);
-			errItem->setIcon(0, m_treeWidget->style()->standardIcon(QStyle::SP_MessageBoxWarning));
+			errItem->setIcon(0, tree->style()->standardIcon(QStyle::SP_MessageBoxWarning));
 			current->setExpanded(true);
 		} else if (i == parts.size() - 1) {
 			current->setText(1, srcHash);

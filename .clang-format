@@ -1,17 +1,29 @@
 Language: Cpp
 BasedOnStyle: LLVM
 
-# Indentation
+# --- Force Tabs ---
 UseTab: Always
-TabWidth: 8
-IndentWidth: 8
+TabWidth: 4
+IndentWidth: 4
+AccessModifierOffset: -4
 
-# Force formatting to handle long lines correctly with tabs
-ContinuationIndentWidth: 8
+# --- Prevent Space Alignment ---
+# If these are set to true, clang will use spaces to align brackets/params
 AlignAfterOpenBracket: DontAlign
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignOperands: false
+AlignTrailingComments: false
 
-# Fix the Brace rules
-BreakBeforeBraces: Attach
+# --- New Lines ---
+MaxEmptyLinesToKeep: 3
+# Keeps your function bodies from being squashed into one line
+AllowShortFunctionsOnASingleLine: None
+
+# --- Braces & Style ---
+ColumnLimit: 0
+NamespaceIndentation: All
+BreakBeforeBraces: Attach # or Custom
 BraceWrapping:
   AfterClass: true
   AfterControlStatement: true
@@ -19,7 +31,3 @@ BraceWrapping:
   AfterNamespace: true
   AfterStruct: true
   AfterUnion: true
-
-# Keep your code style
-ColumnLimit: 0
-NamespaceIndentation: All

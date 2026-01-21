@@ -25,6 +25,7 @@ class DetailsWindow : public QObject {
 	void addHistoryEntry(const QString &timestamp, const QString &mode,
 		const QList<HistoryEntry> &entries, bool saveToFile = true);
 	void loadHistory();
+	void populateErrorTree(QTreeWidget *tree, const QList<HistoryEntry> &entries);
 
       public slots:
 	void clearHistory();
@@ -36,6 +37,6 @@ class DetailsWindow : public QObject {
 	QTreeWidget *m_treeWidget;
 
 	QString getHistoryPath() const;
-	void addPathToTree(QTreeWidgetItem *parent, const QString &fullPath, const QString &error, const QString &srcHash, const QString &destHash);
+	void addPathToTree(QTreeWidget *tree, QTreeWidgetItem *parent, const QString &fullPath, const QString &error, const QString &srcHash, const QString &destHash);
 	void saveHistoryEntry(const QString &timestamp, const QString &mode, const QList<HistoryEntry> &entries);
 };

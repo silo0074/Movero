@@ -12,11 +12,20 @@
 #include "CopyWorker.h"
 #include "DetailsWindow.h"
 
-class SpeedGraph : public QWidget { // Inherits from QWidget
-      Q_OBJECT			    // Enables Qt meta-object features
-	      public :
+enum class OperationMode {
+	Copy,
+	Move,
+	Settings,
+	PreviewUI
+};
 
-	  bool m_update_graph = true;
+class SpeedGraph : public QWidget { // Inherits from QWidget
+Q_OBJECT // Enables Qt meta-object features
+	public :
+
+	bool m_update_graph = true;
+	std::vector<double> m_history;
+
 	// Without explicit, these might be allowed:
 	// SpeedGraph graph = someWidget;  // Implicit conversion
 	// With explicit, only direct initialization is allowed
@@ -32,12 +41,12 @@ class SpeedGraph : public QWidget { // Inherits from QWidget
 		}
 	}
 
-      protected:
+protected:
 	// Override the paint event to custom draw the graph
 	void paintEvent(QPaintEvent *event) override;
 
-      private:
-	std::vector<double> m_history;
+private:
+	// std::vector<double> m_history;
 	double m_maxSpeed;
 	bool m_isPaused = false;
 };
@@ -46,13 +55,14 @@ namespace Ui {
 	class MainWindow;
 }
 
+
 class MainWindow : public QWidget {
 	Q_OBJECT
-      public:
-	explicit MainWindow(const QString &mode, const std::vector<std::string> &sources, const std::string &dest, QWidget *parent = nullptr);
+public:
+	explicit MainWindow(OperationMode mode, const std::vector<std::string> &sources, const std::string &dest, QWidget *parent = nullptr);
 	~MainWindow();
 
-      private slots:
+private slots:
 	void onStatusChanged(CopyWorker::Status status);
 	void onTotalProgress(int fileCount, int totalFiles);
 	void onTogglePause();
@@ -62,15 +72,16 @@ class MainWindow : public QWidget {
 	void onConflictNeeded(QString src, QString dest, QString suggestedName);
 	void onFileCompleted(QString path, QString srcHash, QString destHash);
 
-      protected:
+protected:
 	void closeEvent(QCloseEvent *event) override;
 	// void moveEvent(QMoveEvent *event) override;
 
-      private:
+private:
 	void logHistory(const QString &path, const QString &error = "", const QString &srcHash = "", const QString &destHash = "");
 	void updateTaskbarProgress(int percent);
 	void onToggleDetails();
 	void updateProgressUi();
+	void generateTestData();
 
 	// void clearHistory();
 	// QString m_sourceFolder;
@@ -114,4 +125,5 @@ class MainWindow : public QWidget {
 	int m_totalFiles;
 	int m_filesRemaining;
 	bool m_isPaused;
+	bool m_testMode = false;
 };

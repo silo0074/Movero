@@ -8,6 +8,7 @@ namespace Config {
 	// inline constexpr char APP_NAME[] = "Movero";
 	// inline constexpr char APP_VERSION[] = "1.0.0";
 	inline constexpr char DEVELOPER[] = "Liviu Istrate";
+	inline constexpr char WEBSITE_URL[] = "https://github.com/silo0074/Movero";
 
 	// ----------- App settings ------------------
 	// Saves transferred files and potential errors to a file
@@ -38,16 +39,17 @@ namespace Config {
 	inline bool SPEED_GRAPH_ALIGN_LABELS_RIGHT = false; // false = left, true = right
 
 	// Colors (AARRGGBB format for QColor)
-	inline constexpr unsigned int COLOR_GRAPH_ACTIVE = 0xFF00B400;		// Green
-	inline constexpr unsigned int COLOR_GRAPH_PAUSED = 0xFFFF8C00;		// Orange
+	inline constexpr unsigned int COLOR_GRAPH_ACTIVE = 0xFF00B400; // Green
+	inline constexpr unsigned int COLOR_GRAPH_PAUSED = 0xFFFF8C00; // Orange
 	inline constexpr unsigned int COLOR_GRAPH_GRADIENT_ACTIVE = 0x6400FF00; // Green with alpha
 	inline constexpr unsigned int COLOR_GRAPH_GRADIENT_PAUSED = 0x64FFA500; // Orange with alpha
-	inline constexpr unsigned int COLOR_GRAPH_GRID = 0x64C8C8C8;		// Light Gray with alpha
-	inline constexpr unsigned int COLOR_GRAPH_TEXT = 0xFF808080;		// Gray
+	inline constexpr unsigned int COLOR_GRAPH_GRID = 0x64C8C8C8; // Light Gray with alpha
+	inline constexpr unsigned int COLOR_GRAPH_TEXT = 0xFF808080; // Gray
 
 	// 200 points will represent 20 seconds of history at 10Hz (200 * 0.1s)
 	// History = SPEED_GRAPH_HISTORY_SIZE * (UPDATE_INTERVAL_MS / 1000.0)
 	inline int SPEED_GRAPH_HISTORY_SIZE = 200;
+	inline int SPEED_GRAPH_HISTORY_SIZE_USER = 200;
 
 	// m_maxSpeed represents the top value of the Y-Axis (the 100% height of the graph).
 	// This is a "floor" or minimum scale. If you are copying a very small file at 2 MB/s,

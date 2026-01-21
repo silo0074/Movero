@@ -215,12 +215,15 @@
        <property name="enabled">
         <bool>true</bool>
        </property>
+       <property name="currentIndex">
+        <number>1</number>
+       </property>
        <widget class="QWidget" name="tab">
         <property name="enabled">
          <bool>true</bool>
         </property>
         <attribute name="title">
-         <string>Tab 1</string>
+         <string>History</string>
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_4" stretch="1,0">
          <item>
@@ -280,8 +283,19 @@
        </widget>
        <widget class="QWidget" name="tab_2">
         <attribute name="title">
-         <string>Tab 2</string>
+         <string>Errors</string>
         </attribute>
+        <layout class="QVBoxLayout" name="verticalLayout_6">
+         <item>
+          <widget class="QTreeWidget" name="treeWidgetErrors">
+           <column>
+            <property name="text">
+             <string notr="true">1</string>
+            </property>
+           </column>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </widget>
      </item>
