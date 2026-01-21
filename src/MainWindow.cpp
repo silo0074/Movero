@@ -312,6 +312,7 @@ MainWindow::MainWindow(OperationMode mode, const std::vector<std::string> &sourc
 	ui->labelFrom->setMinimumWidth(0);
 	ui->labelTo->setMinimumWidth(0);
 	ui->tabWidget->hide();
+	ui->tabWidget->setCurrentIndex(0);
 	this->adjustSize();
 	this->resize(Config::WINDOW_WIDTH, this->height());
 	m_collapsedHeight = this->height(); // Save current size
@@ -781,10 +782,10 @@ void MainWindow::updateProgressUi() {
 
 	// From and To
 	QFontMetrics metricsFrom(ui->labelFrom->font());
-	ui->labelFrom->setText(metricsFrom.elidedText("From : " + m_currentFile, Qt::ElideMiddle, ui->labelFrom->width() - 5));
+	ui->labelFrom->setText(metricsFrom.elidedText("<b>From :</b> " + m_currentFile, Qt::ElideMiddle, ui->labelFrom->width() - 5));
 
 	QFontMetrics metricsTo(ui->labelTo->font());
-	ui->labelTo->setText(metricsTo.elidedText("To: " + m_currentDest, Qt::ElideMiddle, ui->labelTo->width() - 5));
+	ui->labelTo->setText(metricsTo.elidedText("<b>To:</b> " + m_currentDest, Qt::ElideMiddle, ui->labelTo->width() - 5));
 
 	// Transfer size: 0 MB of 0 MB
 	ui->labelItems->setText(completedSizeString + " of " + totalSizeString);

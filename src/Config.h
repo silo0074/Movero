@@ -29,7 +29,7 @@ namespace Config {
 	inline bool CHECKSUM_ENABLED = true;
 
 	// ----------- UI constants -----------------
-	inline constexpr int WINDOW_WIDTH = 600;
+	inline constexpr int WINDOW_WIDTH = 500;
 	inline constexpr int WINDOW_HEIGHT_EXPANDED = 800;
 	inline constexpr int SPEED_GRAPH_MIN_HEIGHT = 300;
 

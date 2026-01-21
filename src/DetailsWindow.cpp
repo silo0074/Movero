@@ -6,7 +6,7 @@
 #include <QStyle>
 
 DetailsWindow::DetailsWindow(QTreeWidget *treeWidget, QObject *parent)
-    : QObject(parent), m_treeWidget(treeWidget) {
+	: QObject(parent), m_treeWidget(treeWidget) {
 	m_treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
 
 	// Set the header to resize based on the actual content width
