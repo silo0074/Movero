@@ -8,7 +8,14 @@ namespace Config {
 	// inline constexpr char APP_NAME[] = "Movero";
 	// inline constexpr char APP_VERSION[] = "1.0.0";
 	inline constexpr char DEVELOPER[] = "Liviu Istrate";
-	inline constexpr char WEBSITE_URL[] = "https://github.com/silo0074/Movero";
+	inline constexpr char DESCRIPTION[] =
+		"A customizable file copier with features "
+		"such as file integrity check "
+		"and a speed vs time graph.";
+	inline constexpr char GITHUB_URL[] = "https://github.com/silo0074/Movero";
+	inline constexpr char WEBSITE_URL[] = "https://www.programming-electronics-diy.xyz/";
+	inline constexpr char DONATE_URL[] = "https://www.buymeacoffee.com/liviuistrate";
+	inline QString DONATE_IMG = ":/images/buy_me_a_coffee-default-yellow.png";
 
 	// ----------- App settings ------------------
 	// Saves transferred files and potential errors to a file
@@ -29,7 +36,7 @@ namespace Config {
 	inline bool CHECKSUM_ENABLED = true;
 
 	// ----------- UI constants -----------------
-	inline constexpr int WINDOW_WIDTH = 500;
+	inline constexpr int WINDOW_WIDTH = 560;
 	inline constexpr int WINDOW_HEIGHT_EXPANDED = 800;
 	inline constexpr int SPEED_GRAPH_MIN_HEIGHT = 300;
 

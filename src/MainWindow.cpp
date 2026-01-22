@@ -311,6 +311,22 @@ MainWindow::MainWindow(OperationMode mode, const std::vector<std::string> &sourc
 	// This prevents the window width from being locked by long text
 	ui->labelFrom->setMinimumWidth(0);
 	ui->labelTo->setMinimumWidth(0);
+
+	ui->btnPause->setProperty("state", "playing"); // Initial state
+	// ui->btnPause->setStyleSheet(
+	// 	"QPushButton { "
+	// 	"   text-align: center; "
+	// 	"   font-size: 20pt; " /* Using pt to match Designer */
+	// 	"} "
+	// 	"QPushButton[state='paused'] { "
+	// 	"   padding-bottom: 4px; " /* The 'nudge' for the play symbol */
+	// 	"   font-size: 16pt; "
+	// 	"} "
+	// 	"QPushButton[state='playing'] { "
+	// 	"   padding-bottom: 0px; "
+	// 	"   font-size: 20pt; "
+	// 	"}");
+
 	ui->tabWidget->hide();
 	ui->tabWidget->setCurrentIndex(0);
 	this->adjustSize();
@@ -450,15 +466,6 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 	event->accept();
 }
 
-// void MainWindow::moveEvent(QMoveEvent *event) {
-//     QWidget::moveEvent(event); // Call base class logic
-
-//     // Move the details window only if it exists, is visible, and WE are the ones moving
-//     if (m_detailsWindow && m_detailsWindow->isVisible() && m_isOffsetInitialized) {
-//         // Apply the stored offset to the new main window position
-//         m_detailsWindow->move(this->pos() + m_relativeOffset);
-//     }
-// }
 
 void MainWindow::onTogglePause() {
 	if (m_isPaused) {
@@ -466,14 +473,21 @@ void MainWindow::onTogglePause() {
 			m_worker->resume();
 		m_graph->setPaused(false);
 		m_graphTimer->start(Config::UPDATE_INTERVAL_MS); // Restart the graph movement
-		ui->btnPause->setText("Pause");
+		ui->btnPause->setText("⏸");
+		ui->btnPause->setProperty("state", "playing");
+
 	} else {
 		if (m_worker)
 			m_worker->pause();
 		m_graph->setPaused(true);
 		m_graphTimer->stop(); // Freeze the graph movement
-		ui->btnPause->setText("Resume");
+		ui->btnPause->setText("▶");
+		ui->btnPause->setProperty("state", "paused");
 	}
+
+	// This forces Qt to re-read the stylesheet for the new property value
+	ui->btnPause->style()->unpolish(ui->btnPause);
+	ui->btnPause->style()->polish(ui->btnPause);
 	m_isPaused = !m_isPaused;
 }
 

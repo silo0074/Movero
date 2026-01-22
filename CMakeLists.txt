@@ -37,6 +37,7 @@ set(SOURCES
     src/DetailsWindow.cpp
     src/MainWindow.ui
     src/Settings.ui
+	src/resources.qrc
 )
 
 set(HEADERS

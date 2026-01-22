@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/">
+    <file>style.qss</file>
+    <file>images/buy_me_a_coffee-default-yellow.png</file>
+  </qresource>
+</RCC>

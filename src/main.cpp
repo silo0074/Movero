@@ -30,6 +30,14 @@ using std::endl;
 
 int main(int argc, char *argv[]) {
 	QApplication app(argc, argv);
+
+	// Set global stylesheet
+	QFile styleFile(":/style.qss");
+	if (styleFile.open(QFile::ReadOnly)) {
+		QString styleSheet = QLatin1String(styleFile.readAll());
+		qApp->setStyleSheet(styleSheet);
+	}
+
 	// app.setOrganizationName(APP_NAME);
 	app.setApplicationName(APP_NAME);
 	app.setDesktopFileName(QString(APP_NAME) + ".desktop");

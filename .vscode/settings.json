@@ -14,10 +14,21 @@
 	"cmake.debugConfig": {
         "args": ["settings"]
     },
-	// "editor.tabSize": 4,
-    // "editor.insertSpaces": false,
-    // "editor.detectIndentation": false,
-    // "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+
+	"editor.matchBrackets": "always",
+    "editor.guides.bracketPairs": false,
+    "editor.guides.bracketPairsHorizontal": false,
+    "[cpp]": {
+        "editor.bracketPairColorization.enabled": true
+    },
+
+	"workbench.colorCustomizations": {
+		"editorBracketMatch.background": "#00ff15", // Solid Red Background
+		"editorBracketMatch.border": "#ffffff",     // White Border
+		// "editorBracketHighlight.foreground1": "#ffd700", // Force colorization color 1
+		"editorBracketHighlight.unexpectedBracket.foreground": "#ff0000"
+	},
+
     "files.associations": {
         "CMakeLists.txt": "cmake"
     },
