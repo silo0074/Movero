@@ -95,7 +95,8 @@ private:
 	QSet<QString> m_loggedFiles;
 	CopyWorker *m_worker;
 	SpeedGraph *m_graph;
-	QString m_status;
+	CopyWorker::Status m_status_code;
+	QString m_status_string;
 	QString m_currentFile;
 	QString m_currentDest;
 	QString m_sourceFolder;

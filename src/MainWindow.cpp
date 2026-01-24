@@ -269,10 +269,19 @@ MainWindow::MainWindow(
 	OperationMode mode,
 	const std::vector<std::string> &sources,
 	const std::string &dest,
-	QWidget *parent)
-	: QWidget(parent), ui(new Ui::MainWindow), m_isPaused(false), m_smoothedSpeed(0.0),
-	  m_totalFiles(0), m_filesRemaining(0), m_filePercent(0), m_totalProgress(0),
-	  m_currentSpeed(0.0), m_avgSpeed(0.0) {
+	QWidget *parent
+)	: QWidget(parent), 
+	ui(new Ui::MainWindow), 
+	m_isPaused(false), 
+	m_smoothedSpeed(0.0),
+	m_totalFiles(0), 
+	m_filesRemaining(0), 
+	m_filePercent(0), 
+	m_totalProgress(0),
+	m_currentSpeed(0.0), 
+	m_avgSpeed(0.0),
+	m_status_code(CopyWorker::Copying)
+{
 
 	ui->setupUi(this);
 	m_graph = ui->speedGraphWidget;
@@ -330,8 +339,8 @@ MainWindow::MainWindow(
 	if (mode == OperationMode::PreviewUI) {
 		m_testMode = true;
 		m_worker = nullptr;
-		m_status = m_modeString;
-		ui->labelStatus->setText(m_status);
+		m_status_string = m_modeString;
+		ui->labelStatus->setText(m_status_string);
 	} else {
 		CopyWorker::Mode workerMode =
 			(mode == OperationMode::Move) ? CopyWorker::Move : CopyWorker::Copy;
@@ -421,27 +430,28 @@ void MainWindow::onUpdateProgress(
 void MainWindow::onStatusChanged(CopyWorker::Status status) {
 	switch (status) {
 		case CopyWorker::DryRunGenerating:
-			m_status = tr("DRY RUN: Generating test file...");
+			m_status_string = tr("DRY RUN: Generating test file...");
 			break;
 		case CopyWorker::Scanning:
-			m_status = tr("Scanning and calculating space...");
+			m_status_string = tr("Scanning and calculating space...");
 			break;
 		case CopyWorker::RemovingEmptyFolders:
-			m_status = tr("Removing empty folders...");
+			m_status_string = tr("Removing empty folders...");
 			break;
 		case CopyWorker::Copying:
-			m_status = tr("Copying...");
+			m_status_string = tr("Copying...");
 			break;
 		case CopyWorker::GeneratingHash:
-			m_status = tr("Generating Source Hash...");
+			m_status_string = tr("Generating Source Hash...");
 			break;
 		case CopyWorker::Verifying:
-			m_status = tr("Verifying Checksum...");
+			m_status_string = tr("Verifying Checksum...");
 			break;
 	}
 
-	ui->labelStatus->setText(m_status);
-	LOG(LogLevel::DEBUG) << "onStatusChanged: " << m_status;
+	m_status_code = status;
+	ui->labelStatus->setText(m_status_string);
+	LOG(LogLevel::DEBUG) << "onStatusChanged: " << m_status_string;
 }
 
 void MainWindow::onTotalProgress(int fileCount, int totalFiles) {
@@ -457,8 +467,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 
 	if (m_worker && m_worker->isRunning()) {
 		// Update UI to show we are stopping
-		// m_statusActionLabel->setText("Stopping...");
-		// m_statusLabel->setText("Cleaning up...");
+		ui->labelStatus->setText(tr("Stopping and removing partial files..."));
 
 		// Signal the thread to stop
 		LOG(LogLevel::DEBUG) << "Cancelling copy worker.";
@@ -721,7 +730,6 @@ void MainWindow::onFinished() {
 	setWindowTitle(m_baseTitle); // Reset title to remove percentage
 	ui->labelStatus->setText(tr("Done."));
 	ui->btnPause->setEnabled(false);
-	ui->btnCancel->setText(tr("Close"));
 
 	// Save history
 	if (!m_jobHistory.isEmpty()) {
@@ -796,20 +804,20 @@ void MainWindow::updateProgressUi() {
 	QString remainingSizeString = formatSize(remainingBytes);
 	QString completedSizeString = formatSize(completedBytes);
 
-	// Copying 0 of 0 files
-	ui->labelCopyingFiles->setText(tr("Copying %1 of %2").arg(m_filesRemaining).arg(m_totalFiles));
-	// ui->labelCopyingFiles->setText(tr("Copying ") +
-	// QString::number(m_filesRemaining) + " of " +
-	// QString::number(m_totalFiles)
-	// + " files");
+	// Status
+	if (m_status_code == CopyWorker::Status::Copying){
+		ui->labelStatus->setText(tr("Copying %1 of %2").arg(m_filesRemaining).arg(m_totalFiles));
+	} else {
+		ui->labelStatus->setText(m_status_string);
+	}
 
-	// Total progress (%% is an escape character for % literal)
-	ui->labelProgress->setText(tr("%1%% complete").arg(m_totalProgress));
+	// Total progress
+	ui->labelProgress->setText(tr("%1% complete").arg(m_totalProgress));
 	// ui->labelProgress->setText(QString::number(m_totalProgress) + "%
 	// complete");
 
 	// Remaining: 00:00:00 (MB/s avg)
-	ui->labelETA->setText(tr("Remaining: %1 (%2) MiB/s")
+	ui->labelETA->setText(tr("Remaining: %1 (%2 MiB/s)")
 		.arg(m_eta)
 		.arg(m_avgSpeed, 0, 'f', 0)
 	);
@@ -818,13 +826,13 @@ void MainWindow::updateProgressUi() {
 
 	// From and To
 	QFontMetrics metricsFrom(ui->labelFrom->font());
-	QString labelFromText = tr("<b>From : %1</b> ").arg(m_currentFile);
+	QString labelFromText = tr("<b>From:</b> %1").arg(m_currentFile);
 	ui->labelFrom->setText(metricsFrom.elidedText(labelFromText, Qt::ElideMiddle, ui->labelFrom->width() - 5));
 	// ui->labelFrom->setText(metricsFrom.elidedText("<b>From :</b> " +
 	// m_currentFile, Qt::ElideMiddle, ui->labelFrom->width() - 5));
 
 	QFontMetrics metricsTo(ui->labelTo->font());
-	QString labelToText = tr("<b>To:</b> ").arg(m_currentDest);
+	QString labelToText = tr("<b>To:</b> %1").arg(m_currentDest);
 	ui->labelTo->setText(metricsTo.elidedText(labelToText, Qt::ElideMiddle, ui->labelTo->width() - 5));
 	// ui->labelTo->setText(metricsTo.elidedText("<b>To:</b> " + m_currentDest,
 	// Qt::ElideMiddle, ui->labelTo->width() - 5));
@@ -840,7 +848,7 @@ void MainWindow::updateProgressUi() {
 	ui->labelFileProgress->setText(QString::number(m_filePercent) + "%");
 
 	// Update Window Title for Taskbar Progress
-	setWindowTitle(QString("%1%% - %2").arg(m_totalProgress).arg(m_baseTitle));
+	setWindowTitle(QString("%1% - %2").arg(m_totalProgress).arg(m_baseTitle));
 
 	// Update Taskbar / Dock Progress
 	updateTaskbarProgress(m_totalProgress);

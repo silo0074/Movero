@@ -85,14 +85,26 @@ Settings::Settings(QWidget *parent)
 			args.removeFirst(); 
 		}
 
-		// Start the new instance
-		// Passing applicationFilePath() and the filtered args list
-		if (QProcess::startDetached(QCoreApplication::applicationFilePath(), args)) {
-			// Only quit if the new process successfully launched
+		// Use a shell to fully detach from the current terminal session
+		// This redirects stdout/stderr so the terminal can close
+		QString command = QString("(\"%1\" %2 > /dev/null 2>&1 &)")
+						.arg(QCoreApplication::applicationFilePath())
+						.arg(args.join(" "));
+
+		if (QProcess::startDetached("sh", {"-c", command})) {
 			qApp->quit();
 		} else {
-			qWarning() << "Failed to restart the application.";
+			qWarning() << "Failed to restart and release terminal.";
 		}
+
+		// Start the new instance
+		// Passing applicationFilePath() and the filtered args list
+		// if (QProcess::startDetached(QCoreApplication::applicationFilePath(), args)) {
+		// 	// Only quit if the new process successfully launched
+		// 	qApp->quit();
+		// } else {
+		// 	qWarning() << "Failed to restart the application.";
+		// }
 	});
 
 	// About Page

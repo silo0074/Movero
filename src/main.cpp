@@ -6,6 +6,7 @@
 #include <QMimeData>
 #include <QTranslator>
 #include <QUrl>
+#include <QLockFile>
 #include <iostream>
 
 #include "Config.h"
@@ -40,6 +41,25 @@ using std::endl;
 
 int main(int argc, char *argv[]) {
 	QApplication app(argc, argv);
+
+	// Create a temporary path for the lock file
+	// A lock file is a temporary file created when the app starts. 
+	// If a second instance tries to start, it sees the file exists and is 
+	// "locked" by another Process ID (PID), so it exits.
+	// If app crashes, QLockFile is smart enough to check if the PID stored in the lock file 
+	// is still active. If the PID is dead, it will automatically break the old lock 
+	// and let the new instance start.
+    QString tmpDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    QLockFile lockFile(tmpDir + "/" + APP_NAME + "_unique_lock.lock");
+
+    // Try to lock the file. If it fails, another instance is running.
+    if (!lockFile.tryLock(100)) { // Wait 100ms to be sure
+        QMessageBox::warning(nullptr, 
+			QCoreApplication::translate("Main","Already Running"), 
+			QString::fromStdString(APP_NAME) + 
+			QCoreApplication::translate("Main", " is already running. Please close the other instance first."));
+        return 0; 
+    }
 
 	// Set global stylesheet
 	QFile styleFile(":/style.qss");
