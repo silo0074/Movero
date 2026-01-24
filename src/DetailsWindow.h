@@ -18,20 +18,19 @@ struct HistoryEntry {
 
 class DetailsWindow : public QObject {
 	Q_OBJECT
-      public:
+public:
 	explicit DetailsWindow(QTreeWidget *treeWidget, QObject *parent = nullptr);
 
 	void setSourceDest(const QString &source, const QString &dest);
-	void addHistoryEntry(const QString &timestamp, const QString &mode,
-		const QList<HistoryEntry> &entries, bool saveToFile = true);
+	void addHistoryEntry(const QString &timestamp, const QString &mode, const QList<HistoryEntry> &entries, bool saveToFile = true);
 	void loadHistory();
 	void populateErrorTree(QTreeWidget *tree, const QList<HistoryEntry> &entries);
 
-      public slots:
+public slots:
 	void clearHistory();
 	void onCustomContextMenu(const QPoint &pos);
 
-      private:
+private:
 	QString m_sourceFolder;
 	QString m_destFolder;
 	QTreeWidget *m_treeWidget;

@@ -36,7 +36,8 @@ SpeedGraph::SpeedGraph(QWidget *parent)
 }
 
 void SpeedGraph::addSpeedPoint(double mbps) {
-	// QMutexLocker locker(&m_mutex); // Lock the mutex for the duration of this function
+	// QMutexLocker locker(&m_mutex); // Lock the mutex for the duration of this
+	// function
 
 	// If we hit the limit, remove the oldest (first) point
 	if (m_history.size() >= Config::SPEED_GRAPH_HISTORY_SIZE) {
@@ -47,7 +48,8 @@ void SpeedGraph::addSpeedPoint(double mbps) {
 	m_history.push_back(mbps);
 
 	// Dynamic Scaling logic
-	double targetMax = Config::SPEED_GRAPH_MAX_SPEED; // Floor of 10MB/s is usually better for visibility
+	double targetMax = Config::SPEED_GRAPH_MAX_SPEED; // Floor of 10MB/s is usually better for
+													  // visibility
 	// Smooth scaling
 	for (double s : m_history) {
 		if (s > targetMax)
@@ -66,13 +68,15 @@ void SpeedGraph::addSpeedPoint(double mbps) {
 }
 
 void SpeedGraph::paintEvent(QPaintEvent *) {
-	// QMutexLocker locker(&m_mutex); // Also lock during painting to prevent crashes while drawing
+	// QMutexLocker locker(&m_mutex); // Also lock during painting to prevent
+	// crashes while drawing
 	QPainter p(this);
 	p.setRenderHint(QPainter::Antialiasing);
 
 	// Color definitions based on state
 	QColor mainColor(m_isPaused ? Config::COLOR_GRAPH_PAUSED : Config::COLOR_GRAPH_ACTIVE);
-	QColor gradientTop(m_isPaused ? Config::COLOR_GRAPH_GRADIENT_PAUSED : Config::COLOR_GRAPH_GRADIENT_ACTIVE);
+	QColor gradientTop(
+		m_isPaused ? Config::COLOR_GRAPH_GRADIENT_PAUSED : Config::COLOR_GRAPH_GRADIENT_ACTIVE);
 
 	// Define margins for labels
 	const int leftMargin = Config::SPEED_GRAPH_ALIGN_LABELS_RIGHT ? 5 : 70;
@@ -84,7 +88,8 @@ void SpeedGraph::paintEvent(QPaintEvent *) {
 	int h = height();
 
 	// Effective drawing area for the grid and data
-	QRect gridRect(leftMargin, topMargin, w - leftMargin - rightMargin, h - topMargin - bottomMargin);
+	QRect
+		gridRect(leftMargin, topMargin, w - leftMargin - rightMargin, h - topMargin - bottomMargin);
 
 	// Add 10% headroom so the line never hits the physical top of the widget
 	double effectiveMax = m_maxSpeed * 1.1;
@@ -121,15 +126,18 @@ void SpeedGraph::paintEvent(QPaintEvent *) {
 
 	// Draw Time Scale (X-Axis Labels)
 	if (Config::SPEED_GRAPH_SHOW_TIME_LABELS) {
-		// Calculate total duration based on the actual update frequency of the UI graph
+		// Calculate total duration based on the actual update frequency of the
+		// UI graph
 		double totalSeconds = ((m_history.size() - 1) * Config::UPDATE_INTERVAL_MS) / 1000.0;
 		if (totalSeconds <= 0)
 			totalSeconds = 1.0;
 
-		// Calculate pixels per second based on current window width (Scalable GUI)
+		// Calculate pixels per second based on current window width (Scalable
+		// GUI)
 		double pixelsPerSecond = gridRect.width() / totalSeconds;
 
-		// Dynamic interval calculation: ensure labels don't overlap (min 60px apart)
+		// Dynamic interval calculation: ensure labels don't overlap (min 60px
+		// apart)
 		double minPixelsPerLabel = 60.0;
 		double minInterval = minPixelsPerLabel / pixelsPerSecond;
 
@@ -186,7 +194,8 @@ void SpeedGraph::paintEvent(QPaintEvent *) {
 		drawTick(totalSeconds);
 
 		// Draw 0s and intermediates
-		// Stop if we get too close to the Max label (approx 50px clearance) to avoid overlap
+		// Stop if we get too close to the Max label (approx 50px clearance) to
+		// avoid overlap
 		double leftThreshold = gridRect.left() + 50;
 
 		for (int t = 0; t < static_cast<int>(totalSeconds); t += intervalSeconds) {
@@ -256,39 +265,37 @@ QString SpeedGraph::formatSpeed(double mbps) {
 }
 
 // --- MainWindow Implementation ---
-MainWindow::MainWindow(OperationMode mode, const std::vector<std::string> &sources, const std::string &dest, QWidget *parent)
-	: QWidget(parent),
-	  ui(new Ui::MainWindow),
-	  m_isPaused(false),
-	  m_smoothedSpeed(0.0),
-	  m_totalFiles(0),
-	  m_filesRemaining(0),
-	  m_filePercent(0),
-	  m_totalProgress(0),
-	  m_currentSpeed(0.0),
-	  m_avgSpeed(0.0) {
+MainWindow::MainWindow(
+	OperationMode mode,
+	const std::vector<std::string> &sources,
+	const std::string &dest,
+	QWidget *parent)
+	: QWidget(parent), ui(new Ui::MainWindow), m_isPaused(false), m_smoothedSpeed(0.0),
+	  m_totalFiles(0), m_filesRemaining(0), m_filePercent(0), m_totalProgress(0),
+	  m_currentSpeed(0.0), m_avgSpeed(0.0) {
 
 	ui->setupUi(this);
 	m_graph = ui->speedGraphWidget;
 
 	switch (mode) {
-	case OperationMode::Copy:
-		m_modeString = "Copying";
-		break;
-	case OperationMode::Move:
-		m_modeString = "Moving";
-		break;
-	case OperationMode::PreviewUI:
-		m_modeString = "Preview UI Mode";
-		break;
-	default:
-		m_modeString = "unknown";
-		break;
+		case OperationMode::Copy:
+			m_modeString = tr("Copying");
+			break;
+		case OperationMode::Move:
+			m_modeString = tr("Moving");
+			break;
+		case OperationMode::PreviewUI:
+			m_modeString = tr("Preview UI Mode");
+			break;
+		default:
+			m_modeString = tr("unknown");
+			break;
 	}
 
 	// Initialize DetailsWindow with the tree widget from MainWindow.ui
 	m_detailsWindow = new DetailsWindow(ui->treeWidget, this);
-	connect(ui->btnClearHistory, &QPushButton::clicked, m_detailsWindow, &DetailsWindow::clearHistory);
+	connect(
+		ui->btnClearHistory, &QPushButton::clicked, m_detailsWindow, &DetailsWindow::clearHistory);
 	m_detailsWindow->loadHistory();
 
 	// Save source folder
@@ -299,11 +306,11 @@ MainWindow::MainWindow(OperationMode mode, const std::vector<std::string> &sourc
 	// Save destination folder
 	m_destFolder = QString::fromStdString(dest);
 
+	LOG(LogLevel::DEBUG) << "Mode set to: " << m_modeString;
 	LOG(LogLevel::DEBUG) << "Source folder: " << m_sourceFolder;
 	LOG(LogLevel::DEBUG) << "Destination folder: " << m_destFolder;
 
 	// Set window title
-	// m_modeString = (mode == "mv") ? QStringLiteral("Moving") : QStringLiteral("Copying");
 	m_baseTitle = QStringLiteral(APP_NAME) + " - " + m_modeString;
 	setWindowTitle(m_baseTitle);
 
@@ -312,24 +319,10 @@ MainWindow::MainWindow(OperationMode mode, const std::vector<std::string> &sourc
 	ui->labelFrom->setMinimumWidth(0);
 	ui->labelTo->setMinimumWidth(0);
 
-	ui->btnPause->setProperty("state", "playing"); // Initial state
-	// ui->btnPause->setStyleSheet(
-	// 	"QPushButton { "
-	// 	"   text-align: center; "
-	// 	"   font-size: 20pt; " /* Using pt to match Designer */
-	// 	"} "
-	// 	"QPushButton[state='paused'] { "
-	// 	"   padding-bottom: 4px; " /* The 'nudge' for the play symbol */
-	// 	"   font-size: 16pt; "
-	// 	"} "
-	// 	"QPushButton[state='playing'] { "
-	// 	"   padding-bottom: 0px; "
-	// 	"   font-size: 20pt; "
-	// 	"}");
-
-	ui->tabWidget->hide();
+	ui->btnPause->setProperty("state", "playing"); // Initial state, used by global style sheet
+	ui->tabWidget->hide(); // hide 'show more' expandable window
 	ui->tabWidget->setCurrentIndex(0);
-	this->adjustSize();
+	this->adjustSize(); // after loading history into 'show more' window
 	this->resize(Config::WINDOW_WIDTH, this->height());
 	m_collapsedHeight = this->height(); // Save current size
 	m_expandedHeight = Config::WINDOW_HEIGHT_EXPANDED;
@@ -340,7 +333,8 @@ MainWindow::MainWindow(OperationMode mode, const std::vector<std::string> &sourc
 		m_status = m_modeString;
 		ui->labelStatus->setText(m_status);
 	} else {
-		CopyWorker::Mode workerMode = (mode == OperationMode::Move) ? CopyWorker::Move : CopyWorker::Copy;
+		CopyWorker::Mode workerMode =
+			(mode == OperationMode::Move) ? CopyWorker::Move : CopyWorker::Copy;
 		m_worker = new CopyWorker(sources, dest, workerMode, this);
 
 		connect(m_worker, &CopyWorker::progressChanged, this, &MainWindow::onUpdateProgress);
@@ -348,7 +342,12 @@ MainWindow::MainWindow(OperationMode mode, const std::vector<std::string> &sourc
 		connect(m_worker, &CopyWorker::totalProgress, this, &MainWindow::onTotalProgress);
 		connect(m_worker, &CopyWorker::errorOccurred, this, &MainWindow::onError);
 		connect(m_worker, &CopyWorker::finished, this, &MainWindow::onFinished);
-		connect(m_worker, &CopyWorker::conflictNeeded, this, &MainWindow::onConflictNeeded, Qt::QueuedConnection);
+		connect(
+			m_worker,
+			&CopyWorker::conflictNeeded,
+			this,
+			&MainWindow::onConflictNeeded,
+			Qt::QueuedConnection);
 		connect(m_worker, &CopyWorker::fileCompleted, this, &MainWindow::onFileCompleted);
 	}
 
@@ -390,9 +389,16 @@ MainWindow::~MainWindow() {
 }
 
 /*----------------------------------------------------------------------
-	Updated by copy worker faster than the timer updates the GUI
+				Updated by copy worker faster than the timer updates the GUI
 ------------------------------------------------------------------------*/
-void MainWindow::onUpdateProgress(QString src, QString dest, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta) {
+void MainWindow::onUpdateProgress(
+	QString src,
+	QString dest,
+	int percent,
+	int totalPercent,
+	double curSpeed,
+	double avgSpeed,
+	QString eta) {
 	m_currentFile = src;
 	m_currentDest = dest;
 	m_filePercent = percent;
@@ -402,7 +408,8 @@ void MainWindow::onUpdateProgress(QString src, QString dest, int percent, int to
 	m_eta = eta;
 
 	if (curSpeed > 0) {
-		// smoothing factor: 0.15 (lower = smoother/slower, higher = jumpier/faster)
+		// smoothing factor: 0.15 (lower = smoother/slower, higher =
+		// jumpier/faster)
 		m_smoothedSpeed = (m_smoothedSpeed * 0.85) + (curSpeed * 0.15);
 	}
 
@@ -413,24 +420,24 @@ void MainWindow::onUpdateProgress(QString src, QString dest, int percent, int to
 
 void MainWindow::onStatusChanged(CopyWorker::Status status) {
 	switch (status) {
-	case CopyWorker::DryRunGenerating:
-		m_status = "DRY RUN: Generating test file...";
-		break;
-	case CopyWorker::Scanning:
-		m_status = "Scanning and calculating space...";
-		break;
-	case CopyWorker::RemovingEmptyFolders:
-		m_status = "Removing empty folders...";
-		break;
-	case CopyWorker::Copying:
-		m_status = "Copying...";
-		break;
-	case CopyWorker::GeneratingHash:
-		m_status = "Generating Source Hash...";
-		break;
-	case CopyWorker::Verifying:
-		m_status = "Verifying Checksum...";
-		break;
+		case CopyWorker::DryRunGenerating:
+			m_status = tr("DRY RUN: Generating test file...");
+			break;
+		case CopyWorker::Scanning:
+			m_status = tr("Scanning and calculating space...");
+			break;
+		case CopyWorker::RemovingEmptyFolders:
+			m_status = tr("Removing empty folders...");
+			break;
+		case CopyWorker::Copying:
+			m_status = tr("Copying...");
+			break;
+		case CopyWorker::GeneratingHash:
+			m_status = tr("Generating Source Hash...");
+			break;
+		case CopyWorker::Verifying:
+			m_status = tr("Verifying Checksum...");
+			break;
 	}
 
 	ui->labelStatus->setText(m_status);
@@ -458,14 +465,14 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 		m_worker->cancel();
 
 		// Wait for the thread to finish safely.
-		// This ensures the worker cleans up files and exits run() before we destroy it.
+		// This ensures the worker cleans up files and exits run() before we
+		// destroy it.
 		LOG(LogLevel::DEBUG) << "Waiting for copy worker to finish.";
 		m_worker->wait();
 	}
 
 	event->accept();
 }
-
 
 void MainWindow::onTogglePause() {
 	if (m_isPaused) {
@@ -494,43 +501,44 @@ void MainWindow::onTogglePause() {
 void MainWindow::onError(CopyWorker::FileError err) {
 	QString msg;
 	switch (err.code) {
-	case CopyWorker::DiskFull:
-		if (err.path.isEmpty()) {
-			auto parts = err.extraInfo.split('|');
-			if (parts.size() >= 2) {
-				msg = QString("Not enough space. Required: %1 GB, Available: %2 GB")
-						  .arg(parts[0], parts[1]);
+		case CopyWorker::DiskFull:
+			if (err.path.isEmpty()) {
+				auto parts = err.extraInfo.split('|');
+				if (parts.size() >= 2) {
+					msg = tr("Not enough space. Required: %1 GB, Available: %2 "
+							 "GB")
+							  .arg(parts[0], parts[1]);
+				} else {
+					msg = tr("Not enough disk space.");
+				}
 			} else {
-				msg = "Not enough disk space.";
+				msg = tr("Not enough disk space");
 			}
-		} else {
-			msg = "Not enough disk space";
-		}
-		break;
-	case CopyWorker::DriveCheckFailed:
-		msg = "Could not determine available space on destination.";
-		break;
-	case CopyWorker::SourceOpenFailed:
-		msg = "Failed to open source";
-		break;
-	case CopyWorker::FileOpenFailed:
-		msg = "Failed to open file";
-		break;
-	case CopyWorker::ReadError:
-		msg = "Read error";
-		break;
-	case CopyWorker::UnexpectedEOF:
-		msg = "Unexpected end of file";
-		break;
-	case CopyWorker::WriteError:
-		msg = "Write error";
-		break;
-	case CopyWorker::ChecksumMismatch:
-		msg = "Checksum Mismatch!";
-		break;
-	default:
-		msg = "Unknown error";
-		break;
+			break;
+		case CopyWorker::DriveCheckFailed:
+			msg = tr("Could not determine available space on destination.");
+			break;
+		case CopyWorker::SourceOpenFailed:
+			msg = tr("Failed to open source");
+			break;
+		case CopyWorker::FileOpenFailed:
+			msg = tr("Failed to open file");
+			break;
+		case CopyWorker::ReadError:
+			msg = tr("Read error");
+			break;
+		case CopyWorker::UnexpectedEOF:
+			msg = tr("Unexpected end of file");
+			break;
+		case CopyWorker::WriteError:
+			msg = tr("Write error");
+			break;
+		case CopyWorker::ChecksumMismatch:
+			msg = tr("Checksum Mismatch!");
+			break;
+		default:
+			msg = tr("Unknown error");
+			break;
 	}
 
 	QString logMsg = err.path.isEmpty() ? msg : (err.path + ": " + msg);
@@ -539,26 +547,32 @@ void MainWindow::onError(CopyWorker::FileError err) {
 	if (!err.path.isEmpty()) {
 		logHistory(err.path, msg);
 		m_detailsWindow->populateErrorTree(ui->treeWidgetErrors, m_jobHistory);
+		ui->tabWidget->show();
+		ui->btnShowBottomPanel->setText("▲");
 	}
 }
 
 void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedName) {
-	// PAUSE the graph timer so it doesn't call addSpeedPoint while we are blocked
+	// PAUSE the graph timer so it doesn't call addSpeedPoint while we are
+	// blocked
 	m_graphTimer->stop();
 
-	// 1. No need for manual thread check or invokeMethod.
-	// The Qt::QueuedConnection in the constructor guarantees this runs on the Main Thread.
+	// No need for manual thread check or invokeMethod.
+	// The Qt::QueuedConnection in the constructor guarantees this runs on the
+	// Main Thread.
 
-	// 2. Use Stack Allocation (No 'new', no pointer)
-	// This guarantees the object exists during exec() and is cleaned up immediately after.
+	// Use Stack Allocation (No 'new', no pointer)
+	// This guarantees the object exists during exec() and is cleaned up
+	// immediately after.
 	QDialog dialog(this);
-	dialog.setWindowTitle("File Conflict");
+	dialog.setWindowTitle(tr("File Conflict"));
 
 	// Do NOT set WA_DeleteOnClose when using stack allocation or exec()
 	// dialog.setAttribute(Qt::WA_DeleteOnClose);
 
 	QVBoxLayout *layout = new QVBoxLayout(&dialog);
-	layout->addWidget(new QLabel("Destination file already exists. Select an action:", &dialog));
+	layout->addWidget(
+		new QLabel(tr("Destination file already exists. Select an action:"), &dialog));
 
 	// --- Details Grid ---
 	QGridLayout *grid = new QGridLayout();
@@ -574,9 +588,10 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
 		return QString::number(s / 1024.0, 'f', 2) + " KB";
 	};
 
-	// Use robust QFileInfo checks (in case file was moved/deleted in background)
-	QString srcDate = srcInfo.exists() ? srcInfo.lastModified().toString() : "Unknown";
-	QString destDate = destInfo.exists() ? destInfo.lastModified().toString() : "Unknown";
+	// Use robust QFileInfo checks (in case file was moved/deleted in
+	// background)
+	QString srcDate = srcInfo.exists() ? srcInfo.lastModified().toString() : tr("Unknown");
+	QString destDate = destInfo.exists() ? destInfo.lastModified().toString() : tr("Unknown");
 	qint64 srcSize = srcInfo.exists() ? srcInfo.size() : 0;
 	qint64 destSize = destInfo.exists() ? destInfo.size() : 0;
 
@@ -585,37 +600,37 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
 	QString elidedSrc = metrics.elidedText(src, Qt::ElideMiddle, 800);
 	QString elidedDest = metrics.elidedText(dest, Qt::ElideMiddle, 800);
 
-	grid->addWidget(new QLabel("<b>Source:</b>"), 0, 0);
+	grid->addWidget(new QLabel(tr("<b>Source:</b>")), 0, 0);
 	QLabel *lblSrc = new QLabel(elidedSrc);
 	lblSrc->setToolTip(src);
 	grid->addWidget(lblSrc, 0, 1);
-	grid->addWidget(new QLabel(QString("Size: %1").arg(fmtSize(srcSize))), 1, 1);
-	grid->addWidget(new QLabel(QString("Date: %1").arg(srcDate)), 2, 1);
+	grid->addWidget(new QLabel(tr("Size: %1").arg(fmtSize(srcSize))), 1, 1);
+	grid->addWidget(new QLabel(tr("Date: %1").arg(srcDate)), 2, 1);
 
-	grid->addWidget(new QLabel("<b>Destination:</b>"), 3, 0);
+	grid->addWidget(new QLabel(tr("<b>Destination:</b>")), 3, 0);
 	QLabel *lblDest = new QLabel(elidedDest);
 	lblDest->setToolTip(dest);
 	grid->addWidget(lblDest, 3, 1);
-	grid->addWidget(new QLabel(QString("Size: %1").arg(fmtSize(destSize))), 4, 1);
-	grid->addWidget(new QLabel(QString("Date: %1").arg(destDate)), 5, 1);
+	grid->addWidget(new QLabel(tr("Size: %1").arg(fmtSize(destSize))), 4, 1);
+	grid->addWidget(new QLabel(tr("Date: %1").arg(destDate)), 5, 1);
 
 	layout->addLayout(grid);
 
 	// --- Rename Input ---
 	QHBoxLayout *renameLayout = new QHBoxLayout();
-	renameLayout->addWidget(new QLabel("Rename to:"));
+	renameLayout->addWidget(new QLabel(tr("Rename to:")));
 	QLineEdit *renameEdit = new QLineEdit(suggestedName);
 	renameLayout->addWidget(renameEdit);
 	layout->addLayout(renameLayout);
 
 	// --- Controls ---
-	QCheckBox *cb = new QCheckBox("Do this for all conflicts", &dialog);
+	QCheckBox *cb = new QCheckBox(tr("Do this for all conflicts"), &dialog);
 	layout->addWidget(cb);
 
 	QDialogButtonBox *buttons = new QDialogButtonBox(&dialog);
-	QPushButton *replaceBtn = buttons->addButton("Replace", QDialogButtonBox::AcceptRole);
-	QPushButton *skipBtn = buttons->addButton("Skip", QDialogButtonBox::RejectRole);
-	QPushButton *renameBtn = buttons->addButton("Rename", QDialogButtonBox::ActionRole);
+	QPushButton *replaceBtn = buttons->addButton(tr("Replace"), QDialogButtonBox::AcceptRole);
+	QPushButton *skipBtn = buttons->addButton(tr("Skip"), QDialogButtonBox::RejectRole);
+	QPushButton *renameBtn = buttons->addButton(tr("Rename"), QDialogButtonBox::ActionRole);
 	QPushButton *cancelBtn = buttons->addButton(QDialogButtonBox::Cancel);
 	layout->addWidget(buttons);
 
@@ -654,12 +669,12 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
 		dialog.move(x, y);
 	}
 
-	// 3. Execution
+	// Execution
 	// This blocks the Main Thread (but event loop keeps running)
 	// Worker Thread is waiting on m_inputWait condition
 	dialog.exec();
 
-	// 4. Send Result Back to Worker
+	// Send Result Back to Worker
 	// The dialog is closed, but 'renameEdit' and 'cb' are still valid
 	// because they are children of 'dialog' which is still on the stack.
 	m_worker->resolveConflict(action, cb->isChecked(), renameEdit->text());
@@ -669,9 +684,8 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
 		m_graphTimer->start(Config::UPDATE_INTERVAL_MS);
 	}
 
-	// 5. End of function: 'dialog' destructor runs automatically here.
+	// End of function: 'dialog' destructor runs automatically here.
 }
-
 
 void MainWindow::onToggleDetails() {
 	bool isVisible = false;
@@ -699,16 +713,15 @@ void MainWindow::onToggleDetails() {
 	ui->btnShowBottomPanel->setText(isVisible ? "▲" : "▼");
 }
 
-
 void MainWindow::onFinished() {
 	LOG(LogLevel::DEBUG) << "Done.";
 	updateProgressUi();
 	m_graphTimer->stop(); // Stop the graph once finished
 	updateTaskbarProgress(0); // Clear progress bar
 	setWindowTitle(m_baseTitle); // Reset title to remove percentage
-	ui->labelStatus->setText("Done.");
+	ui->labelStatus->setText(tr("Done."));
 	ui->btnPause->setEnabled(false);
-	ui->btnCancel->setText("Close");
+	ui->btnCancel->setText(tr("Close"));
 
 	// Save history
 	if (!m_jobHistory.isEmpty()) {
@@ -734,8 +747,8 @@ void MainWindow::updateTaskbarProgress(int percent) {
 	if (percent > 100)
 		percent = 100;
 
-	// Unity Launcher API (Supported by Ubuntu Dock, Dash to Dock, KDE Task Manager)
-	// We broadcast a signal that the Dock listens to.
+	// Unity Launcher API (Supported by Ubuntu Dock, Dash to Dock, KDE Task
+	// Manager) We broadcast a signal that the Dock listens to.
 
 	QVariantMap properties;
 	properties.insert("progress", percent / 100.0);
@@ -745,9 +758,7 @@ void MainWindow::updateTaskbarProgress(int percent) {
 	QString uri = "application://" + QCoreApplication::applicationName() + ".desktop";
 
 	QDBusMessage message = QDBusMessage::createSignal(
-		"/com/canonical/Unity/LauncherEntry",
-		"com.canonical.Unity.LauncherEntry",
-		"Update");
+		"/com/canonical/Unity/LauncherEntry", "com.canonical.Unity.LauncherEntry", "Update");
 
 	message << uri << properties;
 	QDBusConnection::sessionBus().send(message);
@@ -786,29 +797,50 @@ void MainWindow::updateProgressUi() {
 	QString completedSizeString = formatSize(completedBytes);
 
 	// Copying 0 of 0 files
-	ui->labelCopyingFiles->setText("Copying " + QString::number(m_filesRemaining) +
-		" of " + QString::number(m_totalFiles) + " files");
-	// Total progress
-	ui->labelProgress->setText(QString::number(m_totalProgress) + "% complete");
+	ui->labelCopyingFiles->setText(tr("Copying %1 of %2").arg(m_filesRemaining).arg(m_totalFiles));
+	// ui->labelCopyingFiles->setText(tr("Copying ") +
+	// QString::number(m_filesRemaining) + " of " +
+	// QString::number(m_totalFiles)
+	// + " files");
+
+	// Total progress (%% is an escape character for % literal)
+	ui->labelProgress->setText(tr("%1%% complete").arg(m_totalProgress));
+	// ui->labelProgress->setText(QString::number(m_totalProgress) + "%
+	// complete");
 
 	// Remaining: 00:00:00 (MB/s avg)
-	ui->labelETA->setText("Remaining: " + m_eta + " (" + QString::number(m_avgSpeed, 'f', 0) + " MiB/s)");
+	ui->labelETA->setText(tr("Remaining: %1 (%2) MiB/s")
+		.arg(m_eta)
+		.arg(m_avgSpeed, 0, 'f', 0)
+	);
+	// ui->labelETA->setText("Remaining: " + m_eta + " (" +
+	// QString::number(m_avgSpeed, 'f', 0) + " MiB/s)");
 
 	// From and To
 	QFontMetrics metricsFrom(ui->labelFrom->font());
-	ui->labelFrom->setText(metricsFrom.elidedText("<b>From :</b> " + m_currentFile, Qt::ElideMiddle, ui->labelFrom->width() - 5));
+	QString labelFromText = tr("<b>From : %1</b> ").arg(m_currentFile);
+	ui->labelFrom->setText(metricsFrom.elidedText(labelFromText, Qt::ElideMiddle, ui->labelFrom->width() - 5));
+	// ui->labelFrom->setText(metricsFrom.elidedText("<b>From :</b> " +
+	// m_currentFile, Qt::ElideMiddle, ui->labelFrom->width() - 5));
 
 	QFontMetrics metricsTo(ui->labelTo->font());
-	ui->labelTo->setText(metricsTo.elidedText("<b>To:</b> " + m_currentDest, Qt::ElideMiddle, ui->labelTo->width() - 5));
+	QString labelToText = tr("<b>To:</b> ").arg(m_currentDest);
+	ui->labelTo->setText(metricsTo.elidedText(labelToText, Qt::ElideMiddle, ui->labelTo->width() - 5));
+	// ui->labelTo->setText(metricsTo.elidedText("<b>To:</b> " + m_currentDest,
+	// Qt::ElideMiddle, ui->labelTo->width() - 5));
 
 	// Transfer size: 0 MB of 0 MB
-	ui->labelItems->setText(completedSizeString + " of " + totalSizeString);
+	ui->labelItems->setText(tr("%1 of %2")
+		.arg(completedSizeString)
+		.arg(totalSizeString)
+	);
+	// ui->labelItems->setText(completedSizeString + " of " + totalSizeString);
 
 	// Current file progress
 	ui->labelFileProgress->setText(QString::number(m_filePercent) + "%");
 
 	// Update Window Title for Taskbar Progress
-	setWindowTitle(QString("%1% - %2").arg(m_totalProgress).arg(m_baseTitle));
+	setWindowTitle(QString("%1%% - %2").arg(m_totalProgress).arg(m_baseTitle));
 
 	// Update Taskbar / Dock Progress
 	updateTaskbarProgress(m_totalProgress);
@@ -836,11 +868,13 @@ void MainWindow::generateTestData() {
 	updateProgressUi();
 }
 
-void MainWindow::logHistory(const QString &path, const QString &error, const QString &srcHash, const QString &destHash) {
+void MainWindow::logHistory(
+	const QString &path, const QString &error, const QString &srcHash, const QString &destHash) {
 	if (!Config::LOG_HISTORY_ENABLED)
 		return;
 
-	// If we already logged this file (e.g. as success), update it if we now have an error
+	// If we already logged this file (e.g. as success), update it if we now
+	// have an error
 	if (m_loggedFiles.contains(path)) {
 		for (auto &entry : m_jobHistory) {
 			if (entry.path == path) {

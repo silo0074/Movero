@@ -83,14 +83,7 @@ private:
 	void updateProgressUi();
 	void generateTestData();
 
-	// void clearHistory();
-	// QString m_sourceFolder;
-	// QString m_destFolder;
-	// QString getHistoryPath() const;
-	// void addPathToTree(QTreeWidgetItem *parent, const QString &fullPath, const QString &error);
-	// void saveHistoryEntry(const QString &timestamp, const QString &mode, const QList<HistoryEntry> &entries);
-	// void loadHistory();
-
+	// UI Main window size
 	int m_expandedHeight;
 	int m_collapsedHeight;
 

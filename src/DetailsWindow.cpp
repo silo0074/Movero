@@ -11,7 +11,7 @@ DetailsWindow::DetailsWindow(QTreeWidget *treeWidget, QObject *parent)
 
 	// Set the header to resize based on the actual content width
 	m_treeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-	m_treeWidget->setHeaderLabels({"File", "Source Hash", "Dest Hash"});
+	// m_treeWidget->setHeaderLabels({tr("File"), tr("Source Hash"), tr("Dest Hash")});
 
 	// Ensure the scrollbar policy allows horizontal scrolling
 	m_treeWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -19,25 +19,6 @@ DetailsWindow::DetailsWindow(QTreeWidget *treeWidget, QObject *parent)
 	// This ensures the tree doesn't "stretch" the last column to the edge,
 	// allowing it to grow beyond the window border
 	m_treeWidget->header()->setStretchLastSection(false);
-
-	// Turn the vertical grid on
-	m_treeWidget->setStyleSheet(R"(
-        QTreeView {
-            gridline-color: palette(mid);
-        }
-        QTreeView::item {
-            border-right: 1px solid palette(mid);
-        }
-        QTreeView::item:selected {
-            background-color: palette(highlight);
-            color: palette(highlighted-text);
-        }
-        /* Optional: maintain the border even when selected */
-        QTreeView::item:selected:active {
-            background-color: palette(highlight);
-        }
-    )");
-
 	connect(m_treeWidget, &QTreeWidget::customContextMenuRequested, this, &DetailsWindow::onCustomContextMenu);
 }
 
@@ -65,12 +46,12 @@ void DetailsWindow::addHistoryEntry(const QString &timestamp, const QString &mod
 	jobItem->setFont(0, QFont("Arial", 10, QFont::Bold));
 
 	QTreeWidgetItem *sourceRoot = new QTreeWidgetItem(jobItem);
-	sourceRoot->setText(0, "Source: " + m_sourceFolder);
+	sourceRoot->setText(0, tr("Source: ") + m_sourceFolder);
 	sourceRoot->setFont(0, QFont("Arial", 10, QFont::Bold));
 	sourceRoot->setIcon(0, m_treeWidget->style()->standardIcon(QStyle::SP_DirIcon));
 
 	QTreeWidgetItem *destRoot = new QTreeWidgetItem(jobItem);
-	destRoot->setText(0, "Destination: " + m_destFolder);
+	destRoot->setText(0, tr("Destination: ") + m_destFolder);
 	destRoot->setFont(0, QFont("Arial", 10, QFont::Bold));
 	destRoot->setIcon(0, m_treeWidget->style()->standardIcon(QStyle::SP_DirIcon));
 
@@ -91,7 +72,7 @@ void DetailsWindow::populateErrorTree(QTreeWidget *tree, const QList<HistoryEntr
 		return;
 
 	tree->clear();
-	tree->setHeaderLabels({"File", "Source Hash", "Dest Hash"});
+	// tree->setHeaderLabels({"File", "Source Hash", "Dest Hash"});
 	tree->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
 	tree->header()->setStretchLastSection(false);
 
@@ -228,7 +209,7 @@ void DetailsWindow::onCustomContextMenu(const QPoint &pos) {
 		return;
 
 	QMenu menu(m_treeWidget);
-	QAction *copyAction = menu.addAction("Copy text");
+	QAction *copyAction = menu.addAction(tr("Copy text"));
 	connect(copyAction, &QAction::triggered, [item, &column]() {
 		QClipboard *clipboard = QApplication::clipboard();
 		clipboard->setText(item->text(column));

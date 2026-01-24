@@ -31,7 +31,7 @@
      <item>
       <widget class="QLabel" name="labelStatus">
        <property name="text">
-        <string>Copying 0 of 0 files</string>
+        <string notr="true">Copying 0 of 0 files</string>
        </property>
       </widget>
      </item>
@@ -45,7 +45,7 @@
           </font>
          </property>
          <property name="text">
-          <string>0% complete</string>
+          <string notr="true">0% complete</string>
          </property>
         </widget>
        </item>
@@ -57,7 +57,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Remaining: 00:00:00 (MB/s avg)</string>
+          <string notr="true">Remaining: 00:00:00 (MB/s avg)</string>
          </property>
         </widget>
        </item>
@@ -135,7 +135,7 @@
              <enum>QFrame::Shadow::Plain</enum>
             </property>
             <property name="text">
-             <string>0%</string>
+             <string notr="true">0%</string>
             </property>
            </widget>
           </item>
@@ -151,14 +151,14 @@
             <item>
              <widget class="QLabel" name="labelFrom">
               <property name="text">
-               <string>From:</string>
+               <string notr="true">From:</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QLabel" name="labelTo">
               <property name="text">
-               <string>To:</string>
+               <string notr="true">To:</string>
               </property>
              </widget>
             </item>
@@ -191,7 +191,7 @@
             <string>Show more</string>
            </property>
            <property name="text">
-            <string>▼</string>
+            <string notr="true">▼</string>
            </property>
           </widget>
          </item>
@@ -200,7 +200,7 @@
        <item>
         <widget class="QLabel" name="labelItems">
          <property name="text">
-          <string>0 MB of 0 MB</string>
+          <string notr="true">0 MB of 0 MB</string>
          </property>
         </widget>
        </item>
@@ -274,7 +274,7 @@
           <string>Cancel</string>
          </property>
          <property name="text">
-          <string>⏹</string>
+          <string notr="true">⏹</string>
          </property>
          <property name="autoDefault">
           <bool>false</bool>
@@ -294,7 +294,7 @@
        <item>
         <widget class="QLabel" name="labelCopyingFiles">
          <property name="text">
-          <string>Status</string>
+          <string notr="true">Status</string>
          </property>
         </widget>
        </item>
@@ -351,17 +351,17 @@
            </attribute>
            <column>
             <property name="text">
-             <string notr="true">1</string>
+             <string notr="true">File</string>
             </property>
            </column>
            <column>
             <property name="text">
-             <string notr="true">2</string>
+             <string notr="true">Source Hash</string>
             </property>
            </column>
            <column>
             <property name="text">
-             <string notr="true">3</string>
+             <string notr="true">Dest Hash</string>
             </property>
            </column>
           </widget>
@@ -390,7 +390,17 @@
           <widget class="QTreeWidget" name="treeWidgetErrors">
            <column>
             <property name="text">
-             <string notr="true">1</string>
+             <string notr="true">File</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Source Hash</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Dest Hash</string>
             </property>
            </column>
           </widget>
@@ -412,7 +422,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="resources.qrc"/>
+  <include location="../resources.qrc"/>
  </resources>
  <connections/>
 </ui>

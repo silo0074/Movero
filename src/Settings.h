@@ -45,4 +45,5 @@ private:
 	void updatePreview();
 	void applyDarkFusion();
 	bool isSystemDark();
+	void saveSettings();
 };

@@ -1,0 +1,12 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Update Translations (lupdate)",
+            "type": "shell",
+            "command": "cmake --build ${command:cmake.buildDirectory} --target Movero_lupdate",
+            "group": "build",
+            "problemMatcher": []
+        }
+    ]
+}

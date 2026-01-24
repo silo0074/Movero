@@ -1,8 +1,10 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QDir>
+#include <QLibraryInfo>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QTranslator>
 #include <QUrl>
 #include <iostream>
 
@@ -14,12 +16,13 @@
 using std::cout;
 using std::endl;
 
+// ------- Requirements to compile
 // OpenSuse is my operating system
 // sudo zypper install CMake gcc-c++ mold lld xxhash-devel \
-// qt6-base-devel qt6-widgets-devel
+// qt6-base-devel qt6-tools-devel qt6-widgets-devel
+// sudo zypper install qt6-linguist-devel
 
 // Ubuntu
-// sudo apt update
 // sudo apt install cmake g++ mold lld libxxhash-dev \
 // qt6-base-dev qt6-base-dev-tools
 
@@ -27,6 +30,13 @@ using std::endl;
 // mkdir build && cd build
 // cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=mold" ..
 // make -j$(nproc)
+
+// Workflow for translations
+// Scan: Run the VSCodium task (CTRL+SHIFT+B).
+// cmake --build ${command:cmake.buildDirectory} --target Movero_lupdate
+// Translate: Open the .ts file in Qt Linguist and save.
+// Build: The .qm is automatically compiled and put into :/i18n/ or /translations
+// depending on the CMakeLists settings.
 
 int main(int argc, char *argv[]) {
 	QApplication app(argc, argv);
@@ -38,11 +48,34 @@ int main(int argc, char *argv[]) {
 		qApp->setStyleSheet(styleSheet);
 	}
 
-	// app.setOrganizationName(APP_NAME);
+	app.setOrganizationName(APP_NAME);
 	app.setApplicationName(APP_NAME);
 	app.setDesktopFileName(QString(APP_NAME) + ".desktop");
 
 	Config::load();
+	QTranslator translator;
+	QString tr_path = ":/translations/Movero_" + Config::LANGUAGE + ".qm";
+	if (translator.load(tr_path)) {
+		if (QCoreApplication::installTranslator(&translator)) {
+			LOG(LogLevel::INFO) << "Successfully installed " + Config::LANGUAGE + " translation.";
+		} else {
+			LOG(LogLevel::INFO) << "Failed to install translator.";
+		}
+	} else {
+		LOG(LogLevel::INFO) << "Could not find or load " + Config::LANGUAGE + ".";
+	}
+
+	// Telling Qt to translate its own internal widgets
+	QTranslator qtTranslator;
+	// "qt_" is a meta-catalog that includes base, widgets, gui, etc.
+	if (qtTranslator.load("qt_" + Config::LANGUAGE, QLibraryInfo::path(QLibraryInfo::TranslationsPath))) {
+		app.installTranslator(&qtTranslator);
+	} else {
+		// Fallback: If "qt_ro" isn't found, try "qtbase_ro"
+		if(qtTranslator.load("qtbase_" + Config::LANGUAGE, QLibraryInfo::path(QLibraryInfo::TranslationsPath))){
+			app.installTranslator(&qtTranslator);
+		}
+	}
 
 	LOG(LogLevel::INFO) << APP_NAME << "started.";
 	LOG(LogLevel::INFO) << "Version" << APP_VERSION;

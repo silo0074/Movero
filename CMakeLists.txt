@@ -23,7 +23,7 @@ set(CMAKE_AUTORCC ON) # Automatically run RCC (if you use .qrc files)
 # Get project source directory
 set(PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets DBus)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets DBus LinguistTools)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(XXHASH REQUIRED libxxhash)
 
@@ -37,15 +37,43 @@ set(SOURCES
     src/DetailsWindow.cpp
     src/MainWindow.ui
     src/Settings.ui
-	src/resources.qrc
+	resources.qrc
 )
 
 set(HEADERS
     src/MainWindow.h
     src/Settings.h
+    src/Config.h
     src/CopyWorker.h
     src/DetailsWindow.h
 )
+
+set(TS_FILES 
+    translations/Movero_ro.ts 
+    translations/Movero_de.ts
+)
+
+# --- This method doesn't generate the .ts files 
+# but it is the recommended method in Qt6.
+
+# This tells Qt which files to scan for translatable strings
+# This command is the "all-in-one" for Qt6.
+# It handles lupdate (scanning) and lrelease (compiling) automatically.
+qt_add_translations(${PROJECT_NAME}
+	TS_FILES ${TS_FILES}
+	SOURCES ${SOURCES} ${HEADERS}  # Explicitly include HEADERS so Config.h is scanned
+	LUPDATE_OPTIONS -extensions h,cpp,ui
+	-no-obsolete  # This will delete the "vanished" strings
+	RESOURCE_PREFIX "/translations" # Optional: sets the path inside :/. Default is "/i18n"
+    # This tells Qt to put the .qm files in a specific place 
+    # without confusing the resource compiler
+)
+
+# Older method from Qt5
+# Generate .qm files in the source directory so resources.qrc can find them
+# set_source_files_properties(${TS_FILES} PROPERTIES OUTPUT_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/translations")
+# qt6_create_translation(QM_FILES ${CMAKE_CURRENT_SOURCE_DIR} ${TS_FILES})
+# add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${QM_FILES})
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 

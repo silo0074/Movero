@@ -7,22 +7,32 @@ TabWidth: 4
 IndentWidth: 4
 AccessModifierOffset: -4
 
+# --- New Lines & Line Length ---
+# Set this to a real number. If it is 0, 'AlwaysBreak' is ignored.
+ColumnLimit: 0
+MaxEmptyLinesToKeep: 3
+AllowShortFunctionsOnASingleLine: None
+IndentWrappedFunctionNames: true
+
+# --- Bracket & Argument Wrapping ---
+# This forces the arguments to stay on their own lines 
+# and places the closing ')' on a new line.
+AlignAfterOpenBracket: AlwaysBreak
+BinPackArguments: false
+BinPackParameters: false
+# This prevents the formatter from pulling the ')' back to the previous line
+ContinuationIndentWidth: 4
+
 # --- Prevent Space Alignment ---
-# If these are set to true, clang will use spaces to align brackets/params
-AlignAfterOpenBracket: DontAlign
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignOperands: false
 AlignTrailingComments: false
 
-# --- New Lines ---
-MaxEmptyLinesToKeep: 3
-# Keeps your function bodies from being squashed into one line
-AllowShortFunctionsOnASingleLine: None
-
 # --- Braces & Style ---
-ColumnLimit: 0
 NamespaceIndentation: All
+BreakBeforeBinaryOperators: NonAssignment
+
 BreakBeforeBraces: Attach # or Custom
 BraceWrapping:
   AfterClass: true
@@ -31,3 +41,7 @@ BraceWrapping:
   AfterNamespace: true
   AfterStruct: true
   AfterUnion: true
+
+# --- Switch case ---
+IndentCaseLabels: true
+IndentCaseBlocks: true

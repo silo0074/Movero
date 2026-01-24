@@ -49,6 +49,30 @@
        <widget class="QWidget" name="page_1">
         <layout class="QVBoxLayout" name="verticalLayout_Page1">
          <item>
+          <layout class="QFormLayout" name="formLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_Language">
+             <property name="text">
+              <string>Language:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="comboLanguage"/>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_3">
+             <property name="text">
+              <string>Style:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QComboBox" name="comboStyle"/>
+           </item>
+          </layout>
+         </item>
+         <item>
           <widget class="QCheckBox" name="checkLogHistory">
            <property name="text">
             <string>Enable Log History</string>
@@ -70,18 +94,24 @@
           </widget>
          </item>
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1">
-           <item>
-            <widget class="QLabel" name="label_3">
-             <property name="text">
-              <string>Style:</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QComboBox" name="comboStyle"/>
-           </item>
-          </layout>
+          <widget class="QLabel" name="lblRestartWarning">
+           <property name="styleSheet">
+            <string>color: red</string>
+           </property>
+           <property name="text">
+            <string>Please restart the application for language changes to take effect.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnRestart">
+           <property name="text">
+            <string>Restart now</string>
+           </property>
+          </widget>
          </item>
          <item>
           <spacer name="verticalSpacer">
@@ -322,6 +352,13 @@
      </item>
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_Buttons">
+       <item>
+        <widget class="QPushButton" name="btnDefaults">
+         <property name="text">
+          <string>Defaults</string>
+         </property>
+        </widget>
+       </item>
        <item>
         <spacer name="horizontalSpacer">
          <property name="orientation">

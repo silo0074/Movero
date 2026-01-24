@@ -16,13 +16,14 @@
 namespace fs = std::filesystem;
 
 CopyWorker::CopyWorker(const std::vector<std::string> &sources, const std::string &destDir, Mode mode, QObject *parent)
-    : QThread(parent),
-      m_sources(sources),
-      m_destDir(destDir),
-      m_mode(mode),
-      m_paused(false),
-      m_cancelled(false),
-      m_applyAll(false) {}
+	: QThread(parent),
+	  m_sources(sources),
+	  m_destDir(destDir),
+	  m_mode(mode),
+	  m_paused(false),
+	  m_cancelled(false),
+	  m_applyAll(false) {
+}
 
 void CopyWorker::pause() {
 	m_paused = true;
@@ -174,25 +175,23 @@ void CopyWorker::run() {
 
 	// PHASE 1.5: Verify Available Space
 	uintmax_t safetyMargin = Config::DISK_SPACE_SAFETY_MARGIN;
-	// try {
-	//     fs::space_info destSpace = fs::space(m_destDir);
+	try {
+		fs::space_info destSpace = fs::space(m_destDir);
 
-	//     // Add a safety margin to account for filesystem overhead/metadata
-	//     if (destSpace.available < (totalBytesRequired + safetyMargin)) {
-	//         double reqGB = totalBytesRequired / (1024.0 * 1024.0 * 1024.0);
-	//         double availGB = destSpace.available / (1024.0 * 1024.0 * 1024.0);
+		// Add a safety margin to account for filesystem overhead/metadata
+		if (destSpace.available < (totalBytesRequired + safetyMargin)) {
+			double reqGB = totalBytesRequired / (1024.0 * 1024.0 * 1024.0);
+			double availGB = destSpace.available / (1024.0 * 1024.0 * 1024.0);
 
-	//         emit errorOccurred({
-	//             DiskFull,
-	//             "",
-	//             QString("%1|%2").arg(reqGB, 0, 'f', 2).arg(availGB, 0, 'f', 2)
-	//         });
-	//         return; // Terminate before starting
-	//     }
-	// } catch (const fs::filesystem_error& e) {
-	//     emit errorOccurred({DriveCheckFailed, "", ""});
-	//     return;
-	// }
+			emit errorOccurred({DiskFull,
+				"",
+				QString("%1|%2").arg(reqGB, 0, 'f', 2).arg(availGB, 0, 'f', 2)});
+			return; // Terminate before starting
+		}
+	} catch (const fs::filesystem_error &e) {
+		emit errorOccurred({DriveCheckFailed, "", ""});
+		return;
+	}
 
 	// PHASE 2: Execute Tasks
 	int totalFiles = tasks.size();
@@ -461,7 +460,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 		// Delete the partial file
 		LOG(LogLevel::INFO) << "Removing partial file:" << dest.string();
 		LOG(LogLevel::INFO) << "Reason: cancelled =" << m_cancelled
-				    << ", fileSize =" << fileSize << ", totalRead =" << totalRead;
+							<< ", fileSize =" << fileSize << ", totalRead =" << totalRead;
 		try {
 			fs::remove(dest);
 		} catch (...) {
