@@ -66,7 +66,7 @@ private slots:
 	void onStatusChanged(CopyWorker::Status status);
 	void onTotalProgress(int fileCount, int totalFiles);
 	void onTogglePause();
-	void onUpdateProgress(QString src, QString dest, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
+	void onUpdateProgress(QString src, QString dest, int percent, int totalPercent, double curSpeed, double avgSpeed, long secondsLeft);
 	void onError(CopyWorker::FileError err);
 	void onFinished();
 	void onConflictNeeded(QString src, QString dest, QString suggestedName);
@@ -106,7 +106,7 @@ private:
 	// Manages the steady 100ms graph updates
 	QTimer *m_graphTimer;
 
-	QString m_eta;
+	long m_secondsLeft = -1;
 	QString m_baseTitle;
 
 	// Holds the EMA (Exponential Moving Average) smoothing filtered speed value

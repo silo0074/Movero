@@ -1,7 +1,6 @@
-// #include <fstream>
-// #include <iostream>
 #include <QDateTime>
 #include <QRegularExpression>
+#include <QStorageInfo>
 #include <algorithm>
 #include <cstdlib>
 #include <fcntl.h>
@@ -22,8 +21,8 @@ CopyWorker::CopyWorker(const std::vector<std::string> &sources, const std::strin
 	  m_mode(mode),
 	  m_paused(false),
 	  m_cancelled(false),
-	  m_applyAll(false) {
-}
+	  m_applyAll(false)
+{}
 
 void CopyWorker::pause() {
 	m_paused = true;
@@ -106,14 +105,10 @@ void CopyWorker::updateProgress(const fs::path &src, const fs::path &dest, qint6
 	std::chrono::duration<double> totalActiveTime = (now - m_overallStartTime) - m_totalPausedDuration;
 	double avgMbps = (m_totalBytesProcessed / (1024.0 * 1024.0)) / (totalActiveTime.count());
 	uintmax_t bytesLeft = m_totalWorkBytes - m_totalBytesProcessed;
-	QString etaStr = "Calculating...";
+	long secondsLeft = -1;
 
 	if (avgMbps > 0.5) {
-		int secondsLeft = static_cast<int>((bytesLeft / (1024.0 * 1024.0)) / avgMbps);
-		if (secondsLeft < 60)
-			etaStr = QString("%1s").arg(secondsLeft);
-		else
-			etaStr = QString("%1m %2s").arg(secondsLeft / 60).arg(secondsLeft % 60);
+		secondsLeft = static_cast<long>((bytesLeft / (1024.0 * 1024.0)) / avgMbps);
 	}
 
 	// Pass the instantaneous speed for the graph, and avg/eta for the labels
@@ -121,10 +116,120 @@ void CopyWorker::updateProgress(const fs::path &src, const fs::path &dest, qint6
 
 	emit progressChanged(QString::fromStdString(src.string()),
 		QString::fromStdString(dest.string()),
-		filePercent, totalPercent, curMbps, avgMbps, etaStr);
+		filePercent, totalPercent, curMbps, avgMbps, secondsLeft);
 
 	lastSampleTime = now;
 	lastBytesRead = fileRead;
+}
+
+enum class FileSystemType {
+	NTFS,
+	FAT32,
+	EXT, // ext2/3/4
+	Generic
+};
+
+static FileSystemType getFileSystemAt(const std::string &path)
+{
+	QStorageInfo storage(QString::fromStdString(path));
+	// Important: QStorageInfo needs to be pointed at an existing directory/root
+	// to identify the volume correctly.
+	QString type = storage.fileSystemType();
+
+	if (type == "ntfs")
+		return FileSystemType::NTFS;
+	if (type == "vfat" || type == "fat32" || type == "exfat")
+		return FileSystemType::FAT32;
+	if (type.startsWith("ext"))
+		return FileSystemType::EXT;
+
+	return FileSystemType::Generic;
+}
+
+static std::string sanitizeFilename(const std::string &name, FileSystemType fsType)
+{
+	if (name.empty() || name == "." || name == "..")
+		return name;
+
+	// List of Windows Reserved Names
+	static const std::vector<std::string> reserved = {
+		"CON", "PRN", "AUX", "NUL", "COM1", "COM2", 
+		"COM3", "COM4", "COM5", "COM6", "COM7", 
+		"COM8", "COM9", "LPT1", "LPT2", "LPT3", 
+		"LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+	};
+
+	bool isRestricted = (fsType == FileSystemType::NTFS || fsType == FileSystemType::FAT32);
+
+	std::string result;
+	if (isRestricted)
+	{
+		// Check for reserved names (case insensitive)
+		std::string upperName = name;
+		std::transform(upperName.begin(), upperName.end(), upperName.begin(), ::toupper);
+		for (const auto &r : reserved) {
+			if (upperName == r)	return "_" + name + "_";
+		}
+
+		for (char c : name)	{
+			switch (c) {
+				case '<':
+					result += "\xE1\x90\xB8";
+					break;
+				case '>':
+					result += "\xE1\x90\xB3";
+					break;
+				case ':':
+					result += "\xEA\x9E\x89";
+					break;
+				case '"':
+					result += "\xEF\xBC\x82";
+					break;
+				case '/':
+					result += "\xE2\x88\x95";
+					break;
+				case '\\':
+					result += "\xEF\xBC\xBC";
+					break;
+				case '|':
+					result += "\xC7\x80";
+					break;
+				case '?':
+					result += "\xEF\xBC\x9F";
+					break;
+				case '*':
+					result += "\xEF\xBC\x8A";
+					break;
+				default:
+					if (static_cast<unsigned char>(c) < 32)
+						result += "_"; // Replace controls
+					else
+						result += c;
+					break;
+			}
+		}
+		// Handle trailing spaces/dots by replacing instead of popping
+		if (!result.empty() && (result.back() == ' ' || result.back() == '.')) {
+			result.back() = '_';
+		}
+	} else {
+		// Linux/Unix: Only / and NUL are strictly forbidden
+		for (char c : name)	{
+			if (c == '/')
+				result += "\xE2\x88\x95";
+			else if (c != '\0')
+				result += c;
+		}
+	}
+	return result;
+}
+
+static fs::path getSanitizedRelativePath(const fs::path &relPath, FileSystemType fsType) {
+	fs::path sanitized;
+	for (const auto &part : relPath) {
+		sanitized /= sanitizeFilename(part.string(), fsType);
+	}
+	return sanitized;
 }
 
 void CopyWorker::run() {
@@ -143,6 +248,9 @@ void CopyWorker::run() {
 		// PHASE 1: Scan, Map, and Calculate Size
 		emit statusChanged(Scanning);
 
+		// Determine the destination filesystem type to apply correct sanitization rules.
+		const FileSystemType fsType = getFileSystemAt(m_destDir);
+
 		for (const auto &srcStr : m_sources) {
 			fs::path srcRoot(srcStr);
 			if (!fs::exists(srcRoot)) {
@@ -152,23 +260,29 @@ void CopyWorker::run() {
 
 			fs::path base = srcRoot.parent_path();
 
-			if (fs::is_directory(srcRoot)) {
+			if (fs::is_symlink(srcRoot)) {
+				fs::path rel = fs::relative(srcRoot, base);
+				tasks.push_back({srcRoot, fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType)});
+			} else if (fs::is_directory(srcRoot)) {
 				sourceDirs.push_back(srcRoot);
 				for (const auto &entry : fs::recursive_directory_iterator(srcRoot)) {
 					if (m_cancelled)
 						return;
-					if (entry.is_directory()) {
+					if (entry.is_symlink()) {
+						fs::path rel = fs::relative(entry.path(), base);
+						tasks.push_back({entry.path(), fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType)});
+					} else if (entry.is_directory()) {
 						sourceDirs.push_back(entry.path());
 					} else if (entry.is_regular_file()) {
 						totalBytesRequired += entry.file_size();
 						fs::path rel = fs::relative(entry.path(), base);
-						tasks.push_back({entry.path(), fs::path(m_destDir) / rel});
+						tasks.push_back({entry.path(), fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType)});
 					}
 				}
 			} else {
 				totalBytesRequired += fs::file_size(srcRoot);
 				fs::path rel = fs::relative(srcRoot, base);
-				tasks.push_back({srcRoot, fs::path(m_destDir) / rel});
+				tasks.push_back({srcRoot, fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType)});
 			}
 		}
 	}
@@ -185,7 +299,9 @@ void CopyWorker::run() {
 
 			emit errorOccurred({DiskFull,
 				"",
-				QString("%1|%2").arg(reqGB, 0, 'f', 2).arg(availGB, 0, 'f', 2)});
+				QString("%1|%2")
+				.arg(reqGB, 0, 'f', 2)
+				.arg(availGB, 0, 'f', 2)});
 			return; // Terminate before starting
 		}
 	} catch (const fs::filesystem_error &e) {
@@ -208,11 +324,8 @@ void CopyWorker::run() {
 	// Heuristic: 1 MB per point. Min 50 points (5 seconds).
 	int calculatedPoints = m_totalWorkBytes / (1024 * 1024) / 10;
 	int minPoints = 10;
-	Config::SPEED_GRAPH_HISTORY_SIZE = std::min(Config::SPEED_GRAPH_HISTORY_SIZE_USER, std::max(minPoints, calculatedPoints));
-	LOG(LogLevel::DEBUG) << "m_totalWorkBytes: " << m_totalWorkBytes;
-	LOG(LogLevel::DEBUG) << "calculatedPoints: " << calculatedPoints;
-	LOG(LogLevel::DEBUG) << "SPEED_GRAPH_HISTORY_SIZE:" << std::max(minPoints, calculatedPoints);
-
+	Config::SPEED_GRAPH_HISTORY_SIZE = std::min(Config::SPEED_GRAPH_HISTORY_SIZE_USER, 
+												std::max(minPoints, calculatedPoints));
 	m_totalBytesCopied = 0;
 
 	// Emit total files to copy
@@ -223,20 +336,23 @@ void CopyWorker::run() {
 			break;
 		fs::create_directories(task.dest.parent_path());
 
+		bool isSymlink = fs::is_symlink(task.src);
 		// 1. Space Check (Per File)
 		uintmax_t currentFileSize = 0;
-		try {
-			currentFileSize = fs::file_size(task.src);
-			// Check space (add safety margin)
-			if (fs::space(m_destDir).available < (currentFileSize + safetyMargin)) {
-				emit errorOccurred({DiskFull, QString::fromStdString(task.src.string())});
-				break;
+		if (!isSymlink) {
+			try {
+				currentFileSize = fs::file_size(task.src);
+				// Check space (add safety margin)
+				if (fs::space(m_destDir).available < (currentFileSize + safetyMargin)) {
+					emit errorOccurred({DiskFull, QString::fromStdString(task.src.string())});
+					break;
+				}
+			} catch (...) { /* Ignore space check errors, let write() fail if full */
 			}
-		} catch (...) { /* Ignore space check errors, let write() fail if full */
 		}
 
 		// 2. Existence Check & Conflict Resolution
-		if (fs::exists(task.dest)) {
+		if (fs::exists(task.dest) || fs::is_symlink(task.dest)) {
 			ConflictAction action = m_savedAction;
 			LOG(LogLevel::DEBUG) << "File already exists:" << task.dest.string();
 
@@ -257,8 +373,7 @@ void CopyWorker::run() {
 				}
 				action = m_userAction;
 
-				if (m_applyAll)
-					m_savedAction = action;
+				if (m_applyAll)	m_savedAction = action;
 			}
 
 			if (action == Cancel) {
@@ -278,6 +393,7 @@ void CopyWorker::run() {
 
 				emit totalProgress(processed, totalFiles);
 				continue;
+
 			} else if (action == Rename) {
 				if (!m_applyAll && !m_userNewName.isEmpty()) {
 					task.dest = task.dest.parent_path() / m_userNewName.toStdString();
@@ -286,6 +402,51 @@ void CopyWorker::run() {
 				}
 			}
 			// If Replace, just proceed (O_TRUNC will handle it)
+		}
+
+		if (isSymlink) {
+			try {
+				// Check if destination is a directory
+				if (fs::exists(task.dest) && fs::is_directory(task.dest) && !fs::is_symlink(task.dest))
+				{
+					// Safety: Don't remove a directory to place a symlink.
+					// This prevents deleting mount points or folder structures.
+					emit errorOccurred({DestinationIsDirectory, QString::fromStdString(task.dest.string())});
+					processed++;
+					emit totalProgress(processed, totalFiles);
+					continue; // Skip this file and keep going
+				}
+
+				// Clear the path so the new link can be created.
+				// The check fs::exists(task.dest) only returns true
+				// if the destination points to a valid, existing target.
+				// Using fs::is_symlink(task.dest), ensures that even broken links
+				// are detected and removed before the copy operation proceeds.
+				// Remove if it's an existing file or (potentially broken) symlink.
+				if (fs::exists(task.dest) || fs::is_symlink(task.dest)) {
+					fs::remove(task.dest);
+				}
+				fs::copy_symlink(task.src, task.dest);
+
+				if (m_mode == Move && !Config::DRY_RUN)	{
+					fs::remove(task.src);
+				}
+
+				// Update UI so it doesn't look stuck
+				emit progressChanged(QString::fromStdString(task.src.string()), 
+									QString::fromStdString(task.dest.string()),
+									100, // File is "100%" done
+									(int)((m_totalBytesProcessed * 100) / m_totalWorkBytes),
+									0.0,
+									0.0,
+									0
+				);
+			} catch (...) {
+				emit errorOccurred({WriteError, QString::fromStdString(task.src.string())});
+			}
+			processed++;
+			emit totalProgress(processed, totalFiles);
+			continue;
 		}
 
 		// copyFile returns true ONLY if verification succeeds
@@ -490,7 +651,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 	int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
 	emit progressChanged(QString::fromStdString(src.string()),
 		QString::fromStdString(dest.string()),
-		100, totalPercent, 0.0, 0.0, "");
+		100, totalPercent, 0.0, 0.0, 0);
 
 	// Open the file again briefly just to invalidate the cache for it
 	int fd_drop = open(dest.c_str(), O_RDONLY);
@@ -632,7 +793,7 @@ bool CopyWorker::verifyFile(const std::filesystem::path &src,
 	int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
 	emit progressChanged(QString::fromStdString(src.string()),
 		QString::fromStdString(dest.string()),
-		100, totalPercent, 0.0, 0.0, "");
+		100, totalPercent, 0.0, 0.0, 0);
 
 	outDiskHash = XXH64_digest(state);
 	XXH64_freeState(state);

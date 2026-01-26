@@ -10,12 +10,13 @@
 
 #include "Config.h"
 
-class CopyWorker : public QThread {
+class CopyWorker : public QThread
+{
 	Q_OBJECT
 
-      public:
+public:
 	enum Mode { Copy,
-		Move };
+				Move };
 
 	enum ErrorType {
 		NoError,
@@ -26,11 +27,13 @@ class CopyWorker : public QThread {
 		ReadError,
 		UnexpectedEOF,
 		WriteError,
-		ChecksumMismatch
+		ChecksumMismatch,
+		DestinationIsDirectory
 	};
 	Q_ENUM(ErrorType)
 
-	struct FileError {
+	struct FileError
+	{
 		ErrorType code;
 		QString path;
 		QString extraInfo;
@@ -53,9 +56,9 @@ class CopyWorker : public QThread {
 	};
 	Q_ENUM(Status)
 
-	std::atomic<uintmax_t> m_totalSizeToCopy{0};	// Calculated during Scan Phase
+	std::atomic<uintmax_t> m_totalSizeToCopy{0}; // Calculated during Scan Phase
 	std::atomic<uintmax_t> m_completedFilesSize{0}; // Size of files fully processed
-	std::atomic<uintmax_t> m_totalBytesCopied{0};	// Total bytes written to disk (including partial)
+	std::atomic<uintmax_t> m_totalBytesCopied{0}; // Total bytes written to disk (including partial)
 	CopyWorker(const std::vector<std::string> &sources, const std::string &destDir, Mode mode, QObject *parent = nullptr);
 
 	void pause();
@@ -63,8 +66,8 @@ class CopyWorker : public QThread {
 	void cancel();
 	void resolveConflict(ConflictAction action, bool applyToAll, QString newName = "");
 
-      signals:
-	void progressChanged(QString src, QString dest, int percent, int totalPercent, double curSpeed, double avgSpeed, QString eta);
+signals:
+	void progressChanged(QString src, QString dest, int percent, int totalPercent, double curSpeed, double avgSpeed, long secondsLeft);
 	void statusChanged(Status status);
 	void totalProgress(int fileCount, int totalFiles);
 	void finished();
@@ -72,10 +75,10 @@ class CopyWorker : public QThread {
 	void conflictNeeded(QString src, QString dest, QString suggestedName);
 	void fileCompleted(QString path, QString srcHash, QString destHash);
 
-      protected:
+protected:
 	void run() override;
 
-      private:
+private:
 	std::vector<std::string> m_sources;
 	std::string m_destDir;
 	Mode m_mode;
@@ -95,10 +98,11 @@ class CopyWorker : public QThread {
 
 	std::chrono::steady_clock::time_point m_overallStartTime;
 	std::chrono::duration<double> m_totalPausedDuration{0};
-	uintmax_t m_totalWorkBytes = 0;	     // (Size of all files * 2)
+	uintmax_t m_totalWorkBytes = 0; // (Size of all files * 2)
 	uintmax_t m_totalBytesProcessed = 0; // Global counter
 
-	struct CopyTask {
+	struct CopyTask
+	{
 		std::filesystem::path src;
 		std::filesystem::path dest;
 	};
@@ -107,8 +111,6 @@ class CopyWorker : public QThread {
 	const size_t BUFFER_SIZE = Config::BUFFER_SIZE;
 
 	bool copyFile(const std::filesystem::path &src, const std::filesystem::path &dest);
-	bool verifyFile(const std::filesystem::path &src, const std::filesystem::path &dest, uint64_t expectedHash,
-		uint64_t &diskHash);
-	void updateProgress(const std::filesystem::path &src, const std::filesystem::path &dest, qint64 totalRead, qint64 fileSize,
-		qint64 &lastBytesRead, std::chrono::steady_clock::time_point &lastSampleTime);
+	bool verifyFile(const std::filesystem::path &src, const std::filesystem::path &dest, uint64_t expectedHash, uint64_t &diskHash);
+	void updateProgress(const std::filesystem::path &src, const std::filesystem::path &dest, qint64 totalRead, qint64 fileSize, qint64 &lastBytesRead, std::chrono::steady_clock::time_point &lastSampleTime);
 };

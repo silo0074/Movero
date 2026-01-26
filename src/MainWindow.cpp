@@ -36,9 +36,6 @@ SpeedGraph::SpeedGraph(QWidget *parent)
 }
 
 void SpeedGraph::addSpeedPoint(double mbps) {
-	// QMutexLocker locker(&m_mutex); // Lock the mutex for the duration of this
-	// function
-
 	// If we hit the limit, remove the oldest (first) point
 	if (m_history.size() >= Config::SPEED_GRAPH_HISTORY_SIZE) {
 		m_history.erase(m_history.begin());
@@ -48,12 +45,11 @@ void SpeedGraph::addSpeedPoint(double mbps) {
 	m_history.push_back(mbps);
 
 	// Dynamic Scaling logic
-	double targetMax = Config::SPEED_GRAPH_MAX_SPEED; // Floor of 10MB/s is usually better for
-													  // visibility
+	// Floor of 10MB/s is usually better for visibility
+	double targetMax = Config::SPEED_GRAPH_MAX_SPEED;
 	// Smooth scaling
 	for (double s : m_history) {
-		if (s > targetMax)
-			targetMax = s;
+		if (s > targetMax)	targetMax = s;
 	}
 
 	if (targetMax > m_maxSpeed) {
@@ -68,8 +64,6 @@ void SpeedGraph::addSpeedPoint(double mbps) {
 }
 
 void SpeedGraph::paintEvent(QPaintEvent *) {
-	// QMutexLocker locker(&m_mutex); // Also lock during painting to prevent
-	// crashes while drawing
 	QPainter p(this);
 	p.setRenderHint(QPainter::Antialiasing);
 
@@ -164,11 +158,11 @@ void SpeedGraph::paintEvent(QPaintEvent *) {
 			QString timeLabel;
 			int tInt = static_cast<int>(timeVal + 0.5);
 
-			if (timeVal < 0.1)
+			if (timeVal < 0.1) {
 				timeLabel = "0s";
-			else if (tInt < 60)
+			} else if (tInt < 60) {
 				timeLabel = QString("-%1s").arg(tInt);
-			else {
+			} else {
 				int m = tInt / 60;
 				int s = tInt % 60;
 				if (s == 0)
@@ -303,8 +297,10 @@ MainWindow::MainWindow(
 
 	// Initialize DetailsWindow with the tree widget from MainWindow.ui
 	m_detailsWindow = new DetailsWindow(ui->treeWidget, this);
-	connect(
-		ui->btnClearHistory, &QPushButton::clicked, m_detailsWindow, &DetailsWindow::clearHistory);
+	connect(ui->btnClearHistory, &QPushButton::clicked, 
+		m_detailsWindow, 
+		&DetailsWindow::clearHistory
+	);
 	m_detailsWindow->loadHistory();
 
 	// Save source folder
@@ -351,9 +347,7 @@ MainWindow::MainWindow(
 		connect(m_worker, &CopyWorker::totalProgress, this, &MainWindow::onTotalProgress);
 		connect(m_worker, &CopyWorker::errorOccurred, this, &MainWindow::onError);
 		connect(m_worker, &CopyWorker::finished, this, &MainWindow::onFinished);
-		connect(
-			m_worker,
-			&CopyWorker::conflictNeeded,
+		connect(m_worker, &CopyWorker::conflictNeeded,
 			this,
 			&MainWindow::onConflictNeeded,
 			Qt::QueuedConnection);
@@ -400,21 +394,16 @@ MainWindow::~MainWindow() {
 /*----------------------------------------------------------------------
 				Updated by copy worker faster than the timer updates the GUI
 ------------------------------------------------------------------------*/
-void MainWindow::onUpdateProgress(
-	QString src,
-	QString dest,
-	int percent,
-	int totalPercent,
-	double curSpeed,
-	double avgSpeed,
-	QString eta) {
+void MainWindow::onUpdateProgress(QString src, QString dest, int percent,
+	int totalPercent, double curSpeed, double avgSpeed,	long secondsLeft) 
+{
 	m_currentFile = src;
 	m_currentDest = dest;
 	m_filePercent = percent;
 	m_totalProgress = totalPercent;
 	m_currentSpeed = curSpeed;
 	m_avgSpeed = avgSpeed;
-	m_eta = eta;
+	m_secondsLeft = secondsLeft;
 
 	if (curSpeed > 0) {
 		// smoothing factor: 0.15 (lower = smoother/slower, higher =
@@ -544,6 +533,9 @@ void MainWindow::onError(CopyWorker::FileError err) {
 			break;
 		case CopyWorker::ChecksumMismatch:
 			msg = tr("Checksum Mismatch!");
+			break;
+		case CopyWorker::DestinationIsDirectory:
+			msg = tr("Collision: Destination is a directory, not a link.");
 			break;
 		default:
 			msg = tr("Unknown error");
@@ -813,36 +805,40 @@ void MainWindow::updateProgressUi() {
 
 	// Total progress
 	ui->labelProgress->setText(tr("%1% complete").arg(m_totalProgress));
-	// ui->labelProgress->setText(QString::number(m_totalProgress) + "%
-	// complete");
+
+	QString etaStr;
+	if (m_secondsLeft < 0) {
+		etaStr = tr("Calculating...");
+	} else if (m_secondsLeft < 60) {
+		etaStr = QString("%1s").arg(m_secondsLeft);
+	} else {
+		long m = m_secondsLeft / 60;
+		long s = m_secondsLeft % 60;
+		etaStr = QString("%1m %2s").arg(m).arg(s);
+	}
 
 	// Remaining: 00:00:00 (MB/s avg)
 	ui->labelETA->setText(tr("Remaining: %1 (%2 MiB/s)")
-		.arg(m_eta)
+		.arg(etaStr)
 		.arg(m_avgSpeed, 0, 'f', 0)
 	);
-	// ui->labelETA->setText("Remaining: " + m_eta + " (" +
-	// QString::number(m_avgSpeed, 'f', 0) + " MiB/s)");
 
 	// From and To
 	QFontMetrics metricsFrom(ui->labelFrom->font());
 	QString labelFromText = tr("<b>From:</b> %1").arg(m_currentFile);
-	ui->labelFrom->setText(metricsFrom.elidedText(labelFromText, Qt::ElideMiddle, ui->labelFrom->width() - 5));
-	// ui->labelFrom->setText(metricsFrom.elidedText("<b>From :</b> " +
-	// m_currentFile, Qt::ElideMiddle, ui->labelFrom->width() - 5));
+	ui->labelFrom->setText(metricsFrom.elidedText(
+		labelFromText, Qt::ElideMiddle, ui->labelFrom->width() - 5));
 
 	QFontMetrics metricsTo(ui->labelTo->font());
 	QString labelToText = tr("<b>To:</b> %1").arg(m_currentDest);
-	ui->labelTo->setText(metricsTo.elidedText(labelToText, Qt::ElideMiddle, ui->labelTo->width() - 5));
-	// ui->labelTo->setText(metricsTo.elidedText("<b>To:</b> " + m_currentDest,
-	// Qt::ElideMiddle, ui->labelTo->width() - 5));
+	ui->labelTo->setText(metricsTo.elidedText(
+		labelToText, Qt::ElideMiddle, ui->labelTo->width() - 5));
 
 	// Transfer size: 0 MB of 0 MB
 	ui->labelItems->setText(tr("%1 of %2")
 		.arg(completedSizeString)
 		.arg(totalSizeString)
 	);
-	// ui->labelItems->setText(completedSizeString + " of " + totalSizeString);
 
 	// Current file progress
 	ui->labelFileProgress->setText(QString::number(m_filePercent) + "%");
@@ -870,7 +866,7 @@ void MainWindow::generateTestData() {
 	m_currentSpeed = speed;
 	m_avgSpeed = speed;
 	m_totalProgress = (static_cast<int>(t * 5) % 100);
-	m_eta = "00:01:30";
+	m_secondsLeft = 90;
 	m_currentFile = "Test_File_Data.dat";
 	m_currentDest = "/tmp/Test_File_Data.dat";
 	updateProgressUi();

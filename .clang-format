@@ -11,7 +11,7 @@ AccessModifierOffset: -4
 # Set this to a real number. If it is 0, 'AlwaysBreak' is ignored.
 ColumnLimit: 0
 MaxEmptyLinesToKeep: 3
-AllowShortFunctionsOnASingleLine: None
+AllowShortFunctionsOnASingleLine: true
 IndentWrappedFunctionNames: true
 
 # --- Bracket & Argument Wrapping ---
@@ -33,7 +33,7 @@ AlignTrailingComments: false
 NamespaceIndentation: All
 BreakBeforeBinaryOperators: NonAssignment
 
-BreakBeforeBraces: Attach # or Custom
+BreakBeforeBraces: Attach # Attach or Custom
 BraceWrapping:
   AfterClass: true
   AfterControlStatement: true
