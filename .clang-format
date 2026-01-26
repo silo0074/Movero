@@ -31,6 +31,7 @@ AlignTrailingComments: false
 
 # --- Braces & Style ---
 NamespaceIndentation: All
+AllowShortEnumsOnASingleLine: false
 BreakBeforeBinaryOperators: NonAssignment
 
 BreakBeforeBraces: Attach # Attach or Custom

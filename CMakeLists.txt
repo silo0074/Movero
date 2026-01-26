@@ -102,3 +102,41 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR} # helps find generated ui_* files
     ${XXHASH_INCLUDE_DIRS}
 )
+
+
+# --- CPACK
+# sudo make install (Installs on your system)
+# cpack (Creates the .deb and .rpm): run inside debug or release folder
+# cpack -G DEB 
+# or
+# cpack -G RPM
+# Verify the content: 
+# For DEB: dpkg -c Movero-1.0.0-Linux.deb
+# For RPM: rpm -qpl Movero-1.0.0-Linux.rpm
+
+# --- INSTALLATION RULES ---
+# These tell CPack what files to put inside the .deb and .rpm
+install(TARGETS ${PROJECT_NAME} DESTINATION bin) # Standardized path
+
+# Ensure these files actually exist in the project folder before running cpack
+# install(FILES ${PROJECT_NAME}.desktop DESTINATION share/applications)
+install(FILES assets/dolphin_service_menu.desktop 
+        DESTINATION share/kio/servicemenus 
+        RENAME movero_copy.desktop)
+
+# --- CPACK CONFIGURATION ---
+set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
+set(CPACK_PACKAGE_VENDOR "MoveroDeveloper")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Fast file copier with xxHash verification")
+set(CPACK_PACKAGE_CONTACT "your-email@example.com") # Required for DEB
+# set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE") # Optional
+
+# RPM Specific
+set(CPACK_RPM_PACKAGE_LICENSE "GPLv3") # license
+set(CPACK_RPM_PACKAGE_GROUP "Applications/System")
+
+set(CPACK_GENERATOR "DEB;RPM")
+
+# This MUST be the very last line of the CPack section
+include(CPack)

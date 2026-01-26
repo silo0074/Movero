@@ -10,13 +10,14 @@
 
 #include "Config.h"
 
-class CopyWorker : public QThread
-{
+class CopyWorker : public QThread {
 	Q_OBJECT
 
 public:
-	enum Mode { Copy,
-				Move };
+	enum Mode {
+		Copy,
+		Move
+	};
 
 	enum ErrorType {
 		NoError,
@@ -32,8 +33,7 @@ public:
 	};
 	Q_ENUM(ErrorType)
 
-	struct FileError
-	{
+	struct FileError {
 		ErrorType code;
 		QString path;
 		QString extraInfo;
@@ -101,8 +101,7 @@ private:
 	uintmax_t m_totalWorkBytes = 0; // (Size of all files * 2)
 	uintmax_t m_totalBytesProcessed = 0; // Global counter
 
-	struct CopyTask
-	{
+	struct CopyTask {
 		std::filesystem::path src;
 		std::filesystem::path dest;
 	};
