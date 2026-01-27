@@ -1,4 +1,5 @@
 #include <QCheckBox>
+#include <QCloseEvent>
 #include <QDateTime>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -455,6 +456,16 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 	LOG(LogLevel::DEBUG) << "Close event received.";
 
 	if (m_worker && m_worker->isRunning()) {
+		QMessageBox::StandardButton reply;
+		reply = QMessageBox::question(this, tr("Confirm Exit"),
+			tr("A file transfer is in progress.\nAre you sure you want to cancel the transfer and exit?"),
+			QMessageBox::Yes | QMessageBox::No);
+
+		if (reply == QMessageBox::No) {
+			event->ignore();
+			return;
+		}
+
 		// Update UI to show we are stopping
 		ui->labelStatus->setText(tr("Stopping and removing partial files..."));
 
@@ -736,6 +747,9 @@ void MainWindow::onFinished() {
 	}
 
 	if (Config::CLOSE_ON_FINISH) {
+		// This prevents the "Transfer in progress" dialog from accidentally triggering 
+		// during an auto-close event due to a race condition where isRunning() might still be true
+		if (m_worker) m_worker->wait();
 		close();
 	}
 }
