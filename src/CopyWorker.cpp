@@ -7,6 +7,7 @@
 #include <memory>
 #include <unistd.h>
 #include <xxhash.h>
+#include <sys/stat.h>
 
 #include "Config.h"
 #include "CopyWorker.h"
@@ -225,6 +226,9 @@ static std::string sanitizeFilename(const std::string &name, FileSystemType fsTy
 }
 
 static fs::path getSanitizedRelativePath(const fs::path &relPath, FileSystemType fsType) {
+	if (!Config::SANITIZE_FILENAMES)
+		return relPath;
+
 	fs::path sanitized;
 	for (const auto &part : relPath) {
 		sanitized /= sanitizeFilename(part.string(), fsType);
@@ -427,6 +431,18 @@ void CopyWorker::run() {
 					fs::remove(task.dest);
 				}
 				fs::copy_symlink(task.src, task.dest);
+
+				if (Config::COPY_FILE_MODIFICATION_TIME) {
+					struct stat st;
+					if (lstat(task.src.c_str(), &st) == 0) {
+						struct timespec times[2];
+						times[0] = st.st_atim; // Access time
+						times[1] = st.st_mtim; // Modification time
+						if (utimensat(AT_FDCWD, task.dest.c_str(), times, AT_SYMLINK_NOFOLLOW) != 0) {
+							LOG(LogLevel::WARNING) << "Failed to set symlink timestamp: " << task.dest.string();
+						}
+					}
+				}
 
 				if (m_mode == Move && !Config::DRY_RUN)	{
 					fs::remove(task.src);
@@ -647,6 +663,16 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 	fdatasync(fd_out);
 	close(fd_out);
 
+	// File modification time
+	// Using std::error_code is a good safety measure to prevent exceptions
+	// if a specific file's metadata cannot be accessed.
+	// Note: birth_time (creation) is not part of the C++ standard
+	// filesystem library yet because of OS-specific limitations.
+	if (Config::COPY_FILE_MODIFICATION_TIME) {
+		std::error_code ec;
+		fs::last_write_time(dest, fs::last_write_time(src, ec), ec);
+	}
+
 	// Force 100% and reset speed graph after copying
 	int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
 	emit progressChanged(QString::fromStdString(src.string()),
@@ -683,6 +709,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 
 	return true;
 }
+
 
 bool CopyWorker::verifyFile(const std::filesystem::path &src,
 	const std::filesystem::path &dest,

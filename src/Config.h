@@ -20,6 +20,8 @@ namespace Config {
 		inline constexpr bool LOG_HISTORY_ENABLED = true;
 		inline constexpr bool CLOSE_ON_FINISH = false;
 		inline constexpr bool CHECKSUM_ENABLED = true;
+		inline constexpr bool COPY_FILE_MODIFICATION_TIME = true;
+		inline constexpr bool SANITIZE_FILENAMES = true;
 		inline constexpr char UI_STYLE[] = "";
 		inline constexpr char LANGUAGE[] = "en";
 
@@ -54,13 +56,22 @@ namespace Config {
 	// Verify file integrity (checksum) after copy
 	inline bool CHECKSUM_ENABLED = Defaults::CHECKSUM_ENABLED;
 
+	// File modification time
+	inline bool COPY_FILE_MODIFICATION_TIME = Defaults::COPY_FILE_MODIFICATION_TIME;
+
+	// Sanitize filenames
+	inline bool SANITIZE_FILENAMES = Defaults::SANITIZE_FILENAMES;
+
 	// Style
 	inline QString UI_STYLE = Defaults::UI_STYLE;
+
+	// Language
 	inline QString LANGUAGE = Defaults::LANGUAGE;
 
+
 	// ----------- UI constants -----------------
-	inline constexpr int WINDOW_WIDTH = 560;
-	inline constexpr int WINDOW_HEIGHT_EXPANDED = 800;
+	inline constexpr int WINDOW_WIDTH = 600;
+	inline constexpr int WINDOW_HEIGHT_EXPANDED = 700;
 	inline constexpr int SPEED_GRAPH_MIN_HEIGHT = 300;
 
 	// ----------- Speed Graph ------------------

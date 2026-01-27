@@ -1,0 +1,8 @@
+#!/bin/sh
+# Update the desktop file database
+update-desktop-database -q /usr/share/applications
+# Update icon cache
+gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor
+
+# Optional: If you want to notify the user
+echo "Movero has been removed successfully."

@@ -35,6 +35,8 @@ Settings::Settings(QWidget *parent)
 	// Load values from Config
 	ui->checkLogHistory->setChecked(Config::LOG_HISTORY_ENABLED);
 	ui->checkChecksum->setChecked(Config::CHECKSUM_ENABLED);
+	ui->checkFileModTime->setChecked(Config::COPY_FILE_MODIFICATION_TIME);
+	ui->checkSanitizeFilenames->setChecked(Config::SANITIZE_FILENAMES);
 	ui->checkCloseOnFinish->setChecked(Config::CLOSE_ON_FINISH);
 	ui->checkTimeLabels->setChecked(Config::SPEED_GRAPH_SHOW_TIME_LABELS);
 	ui->checkAlignRight->setChecked(Config::SPEED_GRAPH_ALIGN_LABELS_RIGHT);
@@ -130,6 +132,8 @@ Settings::Settings(QWidget *parent)
 	connect(ui->btnDefaults, &QPushButton::clicked, this, [this]() {
 		ui->checkLogHistory->setChecked(Config::Defaults::LOG_HISTORY_ENABLED);
 		ui->checkChecksum->setChecked(Config::Defaults::CHECKSUM_ENABLED);
+		ui->checkFileModTime->setChecked(Config::Defaults::COPY_FILE_MODIFICATION_TIME);
+		ui->checkSanitizeFilenames->setChecked(Config::Defaults::SANITIZE_FILENAMES);
 		ui->checkCloseOnFinish->setChecked(Config::Defaults::CLOSE_ON_FINISH);
 		ui->checkTimeLabels->setChecked(Config::Defaults::SPEED_GRAPH_SHOW_TIME_LABELS);
 		ui->checkAlignRight->setChecked(Config::Defaults::SPEED_GRAPH_ALIGN_LABELS_RIGHT);
@@ -270,6 +274,8 @@ bool Settings::isSystemDark() {
 void Settings::saveSettings() {
 	Config::LOG_HISTORY_ENABLED = ui->checkLogHistory->isChecked();
 	Config::CHECKSUM_ENABLED = ui->checkChecksum->isChecked();
+	Config::COPY_FILE_MODIFICATION_TIME = ui->checkFileModTime->isChecked();
+	Config::SANITIZE_FILENAMES = ui->checkSanitizeFilenames->isChecked();
 	Config::CLOSE_ON_FINISH = ui->checkCloseOnFinish->isChecked();
 	Config::SPEED_GRAPH_SHOW_TIME_LABELS = ui->checkTimeLabels->isChecked();
 	Config::SPEED_GRAPH_ALIGN_LABELS_RIGHT = ui->checkAlignRight->isChecked();

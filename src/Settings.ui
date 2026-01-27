@@ -87,6 +87,23 @@
           </widget>
          </item>
          <item>
+          <widget class="QCheckBox" name="checkFileModTime">
+           <property name="text">
+            <string>Copy File Modification Time</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="checkSanitizeFilenames">
+           <property name="toolTip">
+            <string>Replace characters unsupported by the file system with Unicode equivalents.</string>
+           </property>
+           <property name="text">
+            <string>Sanitize Filenames</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QCheckBox" name="checkCloseOnFinish">
            <property name="text">
             <string>Close window when finished</string>
