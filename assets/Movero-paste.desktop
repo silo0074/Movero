@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=KonqPopupMenu/Plugin,inode/directory
+MimeType=inode/directory;
+Actions=MoveroPaste;
+X-KDE-Priority=TopLevel
+X-KDE-Weight=500
+
+[Desktop Action MoveroPaste]
+Name=Paste with Movero
+Icon=edit-paste
+
+# Debug: Show Output in a Temporary Terminal
+# Exec=konsole --hold -e sh -c 'cd ~/.local/share/kio/servicemenus/ && /home/$USER/Scripts/ultracopier-paste.sh "%f"'
+# Exec=gnome-terminal -- /bin/bash -c "/home/$USER/Scripts/ultracopier-paste.sh %f; exec /bin/bash"
+
+# %f passes the current folder path (destination)
+Exec=/run/media/me/D_TOSHIBA_S300/Projects/Movero/build/debug/Movero %f

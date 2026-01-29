@@ -70,9 +70,9 @@ namespace Config {
 
 
 	// ----------- UI constants -----------------
-	inline constexpr int WINDOW_WIDTH = 600;
-	inline constexpr int WINDOW_HEIGHT_EXPANDED = 700;
-	inline constexpr int SPEED_GRAPH_MIN_HEIGHT = 300;
+	inline constexpr int WINDOW_WIDTH = 650;
+	inline constexpr int WINDOW_HEIGHT_EXPANDED = 850;
+	inline constexpr int SPEED_GRAPH_MIN_HEIGHT = 200;
 
 	// ----------- Speed Graph ------------------
 	// Speed Graph Visuals

@@ -5,7 +5,7 @@
 namespace Config {
 	void load() {
 		QSettings s;
-		LOG(LogLevel::DEBUG) << "Loading settings: " << s.fileName();
+		LOG(LogLevel::DEBUG) << "Loading user settings: " << s.fileName();
 		LOG_HISTORY_ENABLED = s.value("logHistory", Defaults::LOG_HISTORY_ENABLED).toBool();
 		CHECKSUM_ENABLED = s.value("checksumEnabled", Defaults::CHECKSUM_ENABLED).toBool();
 		COPY_FILE_MODIFICATION_TIME = s.value("copyFileModTime", Defaults::COPY_FILE_MODIFICATION_TIME).toBool();
@@ -22,7 +22,7 @@ namespace Config {
 
 	void save() {
 		QSettings s;
-		LOG(LogLevel::DEBUG) << "Saving settings: " << s.fileName();
+		LOG(LogLevel::DEBUG) << "Saving user settings: " << s.fileName();
 		s.setValue("logHistory", LOG_HISTORY_ENABLED);
 		s.setValue("checksumEnabled", CHECKSUM_ENABLED);
 		s.setValue("copyFileModTime", COPY_FILE_MODIFICATION_TIME);

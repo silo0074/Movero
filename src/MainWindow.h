@@ -74,10 +74,10 @@ private slots:
 
 protected:
 	void closeEvent(QCloseEvent *event) override;
+	void resizeEvent(QResizeEvent *event) override;
 	// void moveEvent(QMoveEvent *event) override;
 
-private:
-	void logHistory(const QString &path, const QString &error = "", const QString &srcHash = "", const QString &destHash = "");
+	private : void logHistory(const QString &path, const QString &error = "", const QString &srcHash = "", const QString &destHash = "");
 	void updateTaskbarProgress(int percent);
 	void onToggleDetails();
 	void updateProgressUi();
@@ -120,4 +120,5 @@ private:
 	int m_filesRemaining;
 	bool m_isPaused;
 	bool m_testMode = false;
+	bool m_progress_updated = false;
 };

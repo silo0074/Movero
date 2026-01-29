@@ -312,9 +312,9 @@ MainWindow::MainWindow(
 	// Save destination folder
 	m_destFolder = QString::fromStdString(dest);
 
-	LOG(LogLevel::DEBUG) << "Mode set to: " << m_modeString;
-	LOG(LogLevel::DEBUG) << "Source folder: " << m_sourceFolder;
-	LOG(LogLevel::DEBUG) << "Destination folder: " << m_destFolder;
+	LOG(LogLevel::INFO) << "Mode set to: " << m_modeString;
+	LOG(LogLevel::INFO) << "Source folder: " << m_sourceFolder;
+	LOG(LogLevel::INFO) << "Destination folder: " << m_destFolder;
 
 	// Set window title
 	m_baseTitle = QStringLiteral(APP_NAME) + " - " + m_modeString;
@@ -325,11 +325,30 @@ MainWindow::MainWindow(
 	ui->labelFrom->setMinimumWidth(0);
 	ui->labelTo->setMinimumWidth(0);
 
+
+	// 1. Tell the window to resize itself based on layout needs
+	// layout()->setSizeConstraint(QLayout::SetMinAndMaxSize);
+
+	// 2. Remove the stretch factors that cause the 1:2 squeeze
+	// ui->verticalLayout->setStretch(0, 0);
+	// ui->verticalLayout->setStretch(1, 0);
+
+
+
 	ui->btnPause->setProperty("state", "playing"); // Initial state, used by global style sheet
 	ui->tabWidget->hide(); // hide 'show more' expandable window
+	// Ensure the TabWidget doesn't have a massive minimum size that breaks the layout
+	ui->tabWidget->setMinimumHeight(0);
 	ui->tabWidget->setCurrentIndex(0);
 	this->adjustSize(); // after loading history into 'show more' window
 	this->resize(Config::WINDOW_WIDTH, this->height());
+
+	// This is the key for Wayland:
+	// 1. Invalidate the current layout
+	// ui->verticalLayout->activate();
+	// // 2. Tell the window to shrink/grow to fit the new layout state
+	// this->adjustSize();
+
 	m_collapsedHeight = this->height(); // Save current size
 	m_expandedHeight = Config::WINDOW_HEIGHT_EXPANDED;
 
@@ -343,11 +362,31 @@ MainWindow::MainWindow(
 			(mode == OperationMode::Move) ? CopyWorker::Move : CopyWorker::Copy;
 		m_worker = new CopyWorker(sources, dest, workerMode, this);
 
-		connect(m_worker, &CopyWorker::progressChanged, this, &MainWindow::onUpdateProgress);
-		connect(m_worker, &CopyWorker::statusChanged, this, &MainWindow::onStatusChanged);
-		connect(m_worker, &CopyWorker::totalProgress, this, &MainWindow::onTotalProgress);
-		connect(m_worker, &CopyWorker::errorOccurred, this, &MainWindow::onError);
-		connect(m_worker, &CopyWorker::finished, this, &MainWindow::onFinished);
+		connect(m_worker, &CopyWorker::progressChanged, 
+			this, 
+			&MainWindow::onUpdateProgress
+			// Qt::DirectConnection
+		);
+		connect(m_worker, &CopyWorker::statusChanged, 
+			this, 
+			&MainWindow::onStatusChanged
+			// Qt::DirectConnection
+		);
+		connect(m_worker, &CopyWorker::totalProgress, 
+			this, 
+			&MainWindow::onTotalProgress
+			// Qt::DirectConnection
+		);
+		connect(m_worker, &CopyWorker::errorOccurred, 
+			this, 
+			&MainWindow::onError
+			// Qt::DirectConnection
+		);
+		connect(m_worker, &CopyWorker::finished, 
+			this, 
+			&MainWindow::onFinished
+			// Qt::DirectConnection
+		);
 		connect(m_worker, &CopyWorker::conflictNeeded,
 			this,
 			&MainWindow::onConflictNeeded,
@@ -393,7 +432,7 @@ MainWindow::~MainWindow() {
 }
 
 /*----------------------------------------------------------------------
-				Updated by copy worker faster than the timer updates the GUI
+	Updated by copy worker faster than the timer updates the GUI
 ------------------------------------------------------------------------*/
 void MainWindow::onUpdateProgress(QString src, QString dest, int percent,
 	int totalPercent, double curSpeed, double avgSpeed,	long secondsLeft) 
@@ -407,14 +446,16 @@ void MainWindow::onUpdateProgress(QString src, QString dest, int percent,
 	m_secondsLeft = secondsLeft;
 
 	if (curSpeed > 0) {
-		// smoothing factor: 0.15 (lower = smoother/slower, higher =
-		// jumpier/faster)
+		// smoothing factor: 0.15 (lower = smoother/slower, higher = jumpier/faster)
 		m_smoothedSpeed = (m_smoothedSpeed * 0.85) + (curSpeed * 0.15);
 	}
 
-	if (percent == 100) {
-		logHistory(src, "");
-	}
+	m_progress_updated = true;
+
+	// if (percent == 100) {
+	LOG(LogLevel::WARNING) << "onUpdateProgress:" << src;
+	// 	// logHistory(src, "");
+	// }
 }
 
 void MainWindow::onStatusChanged(CopyWorker::Status status) {
@@ -441,19 +482,21 @@ void MainWindow::onStatusChanged(CopyWorker::Status status) {
 
 	m_status_code = status;
 	ui->labelStatus->setText(m_status_string);
-	LOG(LogLevel::DEBUG) << "onStatusChanged: " << m_status_string;
+	LOG(LogLevel::INFO) << "Status Changed: " << m_status_string;
 }
 
 void MainWindow::onTotalProgress(int fileCount, int totalFiles) {
 	m_totalFiles = totalFiles;
 	m_filesRemaining = totalFiles - fileCount;
+	LOG(LogLevel::DEBUG) << "onTotalProgress fileCount:" << fileCount;
+	LOG(LogLevel::DEBUG) << "onTotalProgress m_filesRemaining:" << m_filesRemaining;
 	if (fileCount == 0) {
 		m_graph->m_history.resize(Config::SPEED_GRAPH_HISTORY_SIZE, 0.0);
 	}
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
-	LOG(LogLevel::DEBUG) << "Close event received.";
+	LOG(LogLevel::INFO) << "Close event received.";
 
 	if (m_worker && m_worker->isRunning()) {
 		QMessageBox::StandardButton reply;
@@ -470,13 +513,13 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 		ui->labelStatus->setText(tr("Stopping and removing partial files..."));
 
 		// Signal the thread to stop
-		LOG(LogLevel::DEBUG) << "Cancelling copy worker.";
+		LOG(LogLevel::INFO) << "Cancelling copy worker.";
 		m_worker->cancel();
 
 		// Wait for the thread to finish safely.
 		// This ensures the worker cleans up files and exits run() before we
 		// destroy it.
-		LOG(LogLevel::DEBUG) << "Waiting for copy worker to finish.";
+		LOG(LogLevel::INFO) << "Waiting for copy worker to finish.";
 		m_worker->wait();
 	}
 
@@ -514,9 +557,8 @@ void MainWindow::onError(CopyWorker::FileError err) {
 			if (err.path.isEmpty()) {
 				auto parts = err.extraInfo.split('|');
 				if (parts.size() >= 2) {
-					msg = tr("Not enough space. Required: %1 GB, Available: %2 "
-							 "GB")
-							  .arg(parts[0], parts[1]);
+					msg = tr("Not enough space. Required: %1 GB, Available: %2 GB")
+						.arg(parts[0], parts[1]);
 				} else {
 					msg = tr("Not enough disk space.");
 				}
@@ -554,28 +596,27 @@ void MainWindow::onError(CopyWorker::FileError err) {
 	}
 
 	QString logMsg = err.path.isEmpty() ? msg : (err.path + ": " + msg);
-	LOG(LogLevel::DEBUG) << "Error: " + logMsg;
-	ui->labelStatus->setText(logMsg);
+	LOG(LogLevel::ERROR) << "Error: " + logMsg;
+	ui->labelStatus->setText(msg);
+	m_status_string = msg;
+
 	if (!err.path.isEmpty()) {
 		logHistory(err.path, msg);
 		m_detailsWindow->populateErrorTree(ui->treeWidgetErrors, m_jobHistory);
-		ui->tabWidget->show();
-		ui->btnShowBottomPanel->setText("▲");
+		ui->tabWidget->setCurrentWidget(ui->tab_2);
+		onToggleDetails();
 	}
 }
 
 void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedName) {
-	// PAUSE the graph timer so it doesn't call addSpeedPoint while we are
-	// blocked
+	// PAUSE the graph timer so it doesn't call addSpeedPoint while we are blocked
 	m_graphTimer->stop();
 
 	// No need for manual thread check or invokeMethod.
-	// The Qt::QueuedConnection in the constructor guarantees this runs on the
-	// Main Thread.
+	// The Qt::QueuedConnection in the constructor guarantees this runs on the Main Thread.
 
 	// Use Stack Allocation (No 'new', no pointer)
-	// This guarantees the object exists during exec() and is cleaned up
-	// immediately after.
+	// This guarantees the object exists during exec() and is cleaned up immediately after.
 	QDialog dialog(this);
 	dialog.setWindowTitle(tr("File Conflict"));
 
@@ -708,6 +749,7 @@ void MainWindow::onToggleDetails() {
 	if (ui->tabWidget->isVisible()) {
 		// --- HIDING (Collapsing) ---
 		m_expandedHeight = this->height(); // remember the full height
+		ui->tabWidget->setMinimumHeight(0);
 		ui->tabWidget->hide();
 		this->adjustSize(); // let the layout recalculate the new size
 		this->resize(currentWidth, m_collapsedHeight);
@@ -718,15 +760,17 @@ void MainWindow::onToggleDetails() {
 		ui->treeWidget->header()->doItemsLayout();
 
 		// Restore the saved height while maintaining the current width
-		if (m_expandedHeight > 0)
+		if (m_expandedHeight > 0){
 			this->resize(currentWidth, m_expandedHeight);
+		}
+
 	}
 
 	ui->btnShowBottomPanel->setText(isVisible ? "▲" : "▼");
 }
 
 void MainWindow::onFinished() {
-	LOG(LogLevel::DEBUG) << "Done.";
+	LOG(LogLevel::INFO) << "Done.";
 	updateProgressUi();
 	m_graphTimer->stop(); // Stop the graph once finished
 	updateTaskbarProgress(0); // Clear progress bar
@@ -736,13 +780,14 @@ void MainWindow::onFinished() {
 
 	// Save history
 	if (!m_jobHistory.isEmpty()) {
-
 		if (m_detailsWindow) {
 			QString currentTime = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
 			m_detailsWindow->setSourceDest(m_sourceFolder, m_destFolder);
 			m_detailsWindow->addHistoryEntry(currentTime, m_modeString, m_jobHistory);
 			m_jobHistory.clear();
 			m_loggedFiles.clear();
+			// Allow user resizing
+			ui->treeWidget->header()->setSectionResizeMode(0, QHeaderView::Interactive);
 		}
 	}
 
@@ -782,6 +827,15 @@ void MainWindow::updateProgressUi() {
 	uint64_t totalBytes = 0;
 	uint64_t completedBytes = 0;
 
+	if (m_graph)
+		m_graph->addSpeedPoint(m_smoothedSpeed);
+
+	// Decay speed if no data point received
+	m_smoothedSpeed *= 0.9;
+
+	// if(!m_progress_updated) return;
+	// m_progress_updated = false;
+
 	if (m_worker) {
 		totalBytes = m_worker->m_totalSizeToCopy;
 		completedBytes = m_worker->m_totalBytesCopied;
@@ -817,6 +871,8 @@ void MainWindow::updateProgressUi() {
 		ui->labelStatus->setText(m_status_string);
 	}
 
+	LOG(LogLevel::DEBUG) << "updateProgressUi status:" << m_status_string;
+
 	// Total progress
 	ui->labelProgress->setText(tr("%1% complete").arg(m_totalProgress));
 
@@ -838,15 +894,30 @@ void MainWindow::updateProgressUi() {
 	);
 
 	// From and To
-	QFontMetrics metricsFrom(ui->labelFrom->font());
-	QString labelFromText = tr("<b>From:</b> %1").arg(m_currentFile);
-	ui->labelFrom->setText(metricsFrom.elidedText(
-		labelFromText, Qt::ElideMiddle, ui->labelFrom->width() - 5));
+	// Elide file paths manually because QFontMetrics::elidedText does not support rich text.
+	// We elide the path part and then construct the rich text string.
+	// Get the width of the container holding the labels to determine available space
+	int availableWidth = ui->verticalLayout_7->contentsRect().width();
 
-	QFontMetrics metricsTo(ui->labelTo->font());
-	QString labelToText = tr("<b>To:</b> %1").arg(m_currentDest);
-	ui->labelTo->setText(metricsTo.elidedText(
-		labelToText, Qt::ElideMiddle, ui->labelTo->width() - 5));
+	// Fallback for initialization phase
+	if (availableWidth <= 0) {
+		availableWidth = this->width() - 40;
+	}
+
+	QFontMetrics metrics(ui->labelFrom->font());
+	QFont boldFont = ui->labelFrom->font();
+	boldFont.setBold(true);
+	QFontMetrics boldMetrics(boldFont);
+
+	int fromPrefixWidth = boldMetrics.horizontalAdvance("From: ");
+	// QString elidedFile = metrics.elidedText(m_currentFile, Qt::ElideMiddle, ui->labelFrom->width() - fromPrefixWidth - 5);
+	QString elidedFile = metrics.elidedText(m_currentFile, Qt::ElideMiddle, availableWidth - fromPrefixWidth - 10);
+	ui->labelFrom->setText(tr("<b>From:</b> %1").arg(elidedFile));
+
+	int toPrefixWidth = boldMetrics.horizontalAdvance("To: ");
+	// QString elidedDest = metrics.elidedText(m_currentDest, Qt::ElideMiddle, ui->labelTo->width() - toPrefixWidth - 5);
+	QString elidedDest = metrics.elidedText(m_currentDest, Qt::ElideMiddle, availableWidth - toPrefixWidth - 10);
+	ui->labelTo->setText(tr("<b>To:</b> %1").arg(elidedDest));
 
 	// Transfer size: 0 MB of 0 MB
 	ui->labelItems->setText(tr("%1 of %2")
@@ -863,12 +934,19 @@ void MainWindow::updateProgressUi() {
 	// Update Taskbar / Dock Progress
 	updateTaskbarProgress(m_totalProgress);
 
-	if (m_graph)
-		m_graph->addSpeedPoint(m_smoothedSpeed);
+	// if (m_graph)
+	// 	m_graph->addSpeedPoint(m_smoothedSpeed);
 
-	// Decay speed if no data point received
-	m_smoothedSpeed *= 0.9;
+	// // Decay speed if no data point received
+	// m_smoothedSpeed *= 0.9;
 }
+
+
+void MainWindow::resizeEvent(QResizeEvent *event) {
+	QWidget::resizeEvent(event);
+	// updateProgressUi(); // Re-trigger elision with new widths
+}
+
 
 void MainWindow::generateTestData() {
 	static double t = 0;
@@ -891,8 +969,7 @@ void MainWindow::logHistory(
 	if (!Config::LOG_HISTORY_ENABLED)
 		return;
 
-	// If we already logged this file (e.g. as success), update it if we now
-	// have an error
+	// If we already logged this file (e.g. as success), update it if we now have an error
 	if (m_loggedFiles.contains(path)) {
 		for (auto &entry : m_jobHistory) {
 			if (entry.path == path) {
@@ -915,5 +992,6 @@ void MainWindow::logHistory(
 }
 
 void MainWindow::onFileCompleted(QString path, QString srcHash, QString destHash) {
+	LOG(LogLevel::INFO) << "onFileCompleted:" << path;
 	logHistory(path, "", srcHash, destHash);
 }

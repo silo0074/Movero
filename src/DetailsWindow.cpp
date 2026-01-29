@@ -6,11 +6,9 @@
 #include <QStyle>
 
 DetailsWindow::DetailsWindow(QTreeWidget *treeWidget, QObject *parent)
-	: QObject(parent), m_treeWidget(treeWidget) {
+	: QObject(parent), m_treeWidget(treeWidget) 
+{
 	m_treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
-
-	// Set the header to resize based on the actual content width
-	m_treeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
 	// m_treeWidget->setHeaderLabels({tr("File"), tr("Source Hash"), tr("Dest Hash")});
 
 	// Ensure the scrollbar policy allows horizontal scrolling
@@ -19,6 +17,24 @@ DetailsWindow::DetailsWindow(QTreeWidget *treeWidget, QObject *parent)
 	// This ensures the tree doesn't "stretch" the last column to the edge,
 	// allowing it to grow beyond the window border
 	m_treeWidget->header()->setStretchLastSection(false);
+
+	m_treeWidget->header()->setSectionResizeMode(0, QHeaderView::Stretch); // File column stretches
+	m_treeWidget->header()->setSectionResizeMode(1, QHeaderView::Interactive); // Hashes are fixed/manual
+	m_treeWidget->header()->setSectionResizeMode(2, QHeaderView::Interactive);
+	m_treeWidget->setColumnWidth(0, 200); // Set a reasonable default
+
+	// Ensure the tree itself doesn't have a huge minimum size hint
+	m_treeWidget->setMinimumWidth(100);
+
+	// Set a maximum section size for the first column to prevent it from pushing the layout
+	m_treeWidget->header()->setCascadingSectionResizes(true);
+
+	// Set a minimum size for the first column
+	// This prevents the window from being forced wide by content,
+	// but forces scrollbars if the window is resized too small.
+	m_treeWidget->header()->setMinimumSectionSize(100);
+	m_treeWidget->header()->setDefaultSectionSize(150);
+
 	connect(m_treeWidget, &QTreeWidget::customContextMenuRequested, this, &DetailsWindow::onCustomContextMenu);
 }
 
@@ -31,17 +47,24 @@ void DetailsWindow::clearHistory() {
 	if (m_treeWidget)
 		m_treeWidget->clear();
 	const QString path = getHistoryPath();
-	LOG(LogLevel::DEBUG) << "Removing history file: " << path;
-	QFile::remove(path);
+	const QFile file(path);
+
+	if (file.exists()) {
+		LOG(LogLevel::INFO) << "Removing history file: " << path;
+		QFile::remove(path);
+	} else {
+		LOG(LogLevel::ERROR) << "History file not found: " << path;
+	}
 }
 
 void DetailsWindow::addHistoryEntry(const QString &timestamp, const QString &mode,
-	const QList<HistoryEntry> &entries, bool saveToFile) {
+									const QList<HistoryEntry> &entries, bool saveToFile) 
+{
 	if (!m_treeWidget)
 		return;
 
 	// Create the Top-Level "Job" (e.g., "2024-05-01 10:00 - Copy")
-	QTreeWidgetItem *jobItem = new QTreeWidgetItem(m_treeWidget);
+	QTreeWidgetItem *jobItem = new QTreeWidgetItem();
 	jobItem->setText(0, timestamp + " - " + mode);
 	jobItem->setFont(0, QFont("Arial", 10, QFont::Bold));
 
@@ -60,6 +83,7 @@ void DetailsWindow::addHistoryEntry(const QString &timestamp, const QString &mod
 		addPathToTree(m_treeWidget, jobItem, entry.path, entry.error, entry.srcHash, entry.destHash);
 	}
 
+	m_treeWidget->insertTopLevelItem(0, jobItem);
 	// jobItem->setExpanded(true);
 
 	// Save to JSON
@@ -73,20 +97,42 @@ void DetailsWindow::populateErrorTree(QTreeWidget *tree, const QList<HistoryEntr
 
 	tree->clear();
 	// tree->setHeaderLabels({"File", "Source Hash", "Dest Hash"});
-	tree->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+	tree->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents); // File column stretches
+	tree->header()->setSectionResizeMode(1, QHeaderView::Interactive); // Hashes are fixed/manual
+	tree->header()->setSectionResizeMode(2, QHeaderView::Interactive);
+	tree->setColumnWidth(0, 200); // Set a reasonable default
+
+	// Ensure the tree itself doesn't have a huge minimum size hint
+	tree->setMinimumWidth(100);
+	tree->setMinimumHeight(100);
+
+	// Allow horizontal scrolling
+	tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 	tree->header()->setStretchLastSection(false);
+
+	// Set a maximum section size for the first column to prevent it from pushing the layout
+	m_treeWidget->header()->setCascadingSectionResizes(true);
+
+	// Set a minimum size for the first column
+	// This prevents the window from being forced wide by content,
+	// but forces scrollbars if the window is resized too small.
+	tree->header()->setMinimumSectionSize(100);
+	tree->header()->setDefaultSectionSize(150);
+
 
 	QTreeWidgetItem *root = new QTreeWidgetItem(tree);
 	root->setText(0, "Errors");
 	root->setFont(0, QFont("Arial", 10, QFont::Bold));
 	root->setIcon(0, tree->style()->standardIcon(QStyle::SP_MessageBoxWarning));
-	root->setExpanded(true);
 
 	for (const auto &entry : entries) {
 		if (!entry.error.isEmpty()) {
 			addPathToTree(tree, root, entry.path, entry.error, entry.srcHash, entry.destHash);
 		}
 	}
+
+	root->setExpanded(true);
+	tree->expandAll();
 }
 
 QString DetailsWindow::getHistoryPath() const {
@@ -99,7 +145,7 @@ void DetailsWindow::addPathToTree(QTreeWidget *tree, QTreeWidgetItem *parent, co
 	if (!tree)
 		return;
 
-	QDir directory(m_sourceFolder);
+	QDir directory(m_destFolder);
 	QString relativePath = directory.relativeFilePath(fullPath);
 	QString normalized = QDir::cleanPath(relativePath);
 	QStringList parts = normalized.split('/', Qt::SkipEmptyParts);
@@ -143,6 +189,14 @@ void DetailsWindow::addPathToTree(QTreeWidget *tree, QTreeWidgetItem *parent, co
 
 void DetailsWindow::saveHistoryEntry(const QString &timestamp, const QString &mode, const QList<HistoryEntry> &entries) {
 	QFile file(getHistoryPath());
+
+	// Check if the file is over 5MB (5 * 1024 * 1024 bytes)
+	const qint64 sizeLimit = 5 * 1024 * 1024;
+	if (file.exists() && file.size() > sizeLimit) {
+		LOG(LogLevel::WARNING) << "History file too large (" << file.size() << " bytes). Clearing...";
+		clearHistory();
+	}
+
 	QJsonArray array;
 
 	if (file.open(QIODevice::ReadOnly)) {
@@ -166,10 +220,12 @@ void DetailsWindow::saveHistoryEntry(const QString &timestamp, const QString &mo
 		filesArray.append(fObj);
 	}
 	jobObj["entries"] = filesArray;
-	array.append(jobObj);
+	array.prepend(jobObj);
 
 	if (file.open(QIODevice::WriteOnly)) {
 		file.write(QJsonDocument(array).toJson());
+	} else {
+		LOG(LogLevel::ERROR) << "Failed to commit history file.";
 	}
 }
 
@@ -179,8 +235,9 @@ void DetailsWindow::loadHistory() {
 		return;
 
 	QJsonArray array = QJsonDocument::fromJson(file.readAll()).array();
-	for (const QJsonValue &val : array) {
-		QJsonObject job = val.toObject();
+	// Iterate backwards so that when we insert at index 0, the newest items appear at the top.
+	for (int i = array.size() - 1; i >= 0; --i) {
+		QJsonObject job = array[i].toObject();
 		QList<HistoryEntry> entries;
 		QJsonArray files = job["entries"].toArray();
 		for (const QJsonValue &fVal : files) {

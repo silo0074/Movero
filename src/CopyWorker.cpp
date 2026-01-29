@@ -497,6 +497,7 @@ void CopyWorker::run() {
 		}
 	}
 
+	LOG(LogLevel::WARNING) << "emit finished";
 	emit finished();
 }
 
@@ -637,7 +638,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 		// Delete the partial file
 		LOG(LogLevel::INFO) << "Removing partial file:" << dest.string();
 		LOG(LogLevel::INFO) << "Reason: cancelled =" << m_cancelled
-							<< ", fileSize =" << fileSize << ", totalRead =" << totalRead;
+								<< ", fileSize =" << fileSize << ", totalRead =" << totalRead;
 		try {
 			fs::remove(dest);
 		} catch (...) {
@@ -689,23 +690,30 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 
 	// Verify Phase (Read from disk)
 	uint64_t diskHash = 0;
+	bool checksumFailed = false;
+
 	if (Config::CHECKSUM_ENABLED) {
 		if (!verifyFile(src, dest, srcHash, diskHash)) {
-			LOG(LogLevel::DEBUG) << "Verification failed=" << dest.string();
+			LOG(LogLevel::ERROR) << "Verification failed:" << dest.c_str();
 			// Verification failed or was cancelled during verification
 			try {
+				LOG(LogLevel::INFO) << "Removing failed checksum destination file:" << dest.c_str();
 				fs::remove(dest);
-			} catch (...) {
-			}
+			} catch (...) {	}
 			m_totalBytesCopied -= totalRead;
-			return false;
+			checksumFailed = true;
+			// return false;
 		}
 	}
 
 	// Emit completion signal with hashes
-	emit fileCompleted(QString::fromStdString(src.string()),
+	emit fileCompleted(QString::fromStdString(dest.string()),
 		Config::CHECKSUM_ENABLED ? QString::number(srcHash, 16) : "",
 		Config::CHECKSUM_ENABLED ? QString::number(diskHash, 16) : "");
+
+	if (checksumFailed){
+		emit errorOccurred({ChecksumMismatch, QString::fromStdString(dest.string())});
+	}
 
 	return true;
 }
@@ -827,7 +835,7 @@ bool CopyWorker::verifyFile(const std::filesystem::path &src,
 	close(fd);
 
 	if (outDiskHash != expectedHash) {
-		emit errorOccurred({ChecksumMismatch, QString::fromStdString(dest.string())});
+		// emit errorOccurred({ChecksumMismatch, QString::fromStdString(dest.string())});
 		return false;
 	}
 	return true;
