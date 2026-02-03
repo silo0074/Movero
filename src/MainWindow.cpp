@@ -15,6 +15,8 @@
 #include <QVBoxLayout>
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusMessage>
+#include <QtDBus/QDBusReply>
+#include <QUrl>
 #include <qobject.h>
 
 #include "Config.h"
@@ -278,6 +280,7 @@ MainWindow::MainWindow(
 	m_avgSpeed(0.0),
 	m_status_code(CopyWorker::Copying)
 {
+	m_topLevelItems.clear();
 
 	ui->setupUi(this);
 	m_graph = ui->speedGraphWidget;
@@ -997,6 +1000,40 @@ void MainWindow::logHistory(
 	m_loggedFiles.insert(path);
 }
 
-void MainWindow::onFileCompleted(QString path, QString srcHash, QString destHash) {
+void MainWindow::onFileCompleted(QString path, QString srcHash, QString destHash, bool isTopLevel) {
 	logHistory(path, "", srcHash, destHash);
+	
+	if (isTopLevel && Config::SELECT_FILES_AFTER_COPY) {
+		m_topLevelItems.append(path);
+		highlightFile(m_topLevelItems);
+	}
+}
+
+void MainWindow::highlightFile(const QStringList &paths) {
+	if (paths.isEmpty()) return;
+
+	QStringList uris;
+	uris.reserve(paths.size());
+	for (const QString &path : paths) {
+		uris.append(QUrl::fromLocalFile(path).toString());
+	}
+
+	QDBusMessage message = QDBusMessage::createMethodCall(
+		"org.freedesktop.FileManager1",
+		"/org/freedesktop/FileManager1",
+		"org.freedesktop.FileManager1",
+		"ShowItems"
+	);
+	message << uris << QString("0"); // StartupId
+
+	QDBusConnection::sessionBus().call(message, QDBus::NoBlock);
+
+	// QDBusReply<void> reply = QDBusConnection::sessionBus().call(message);
+
+	// if (!reply.isValid()) {
+	// 	qDebug() << "D-Bus Error Name:" << reply.error().name();
+	// 	qDebug() << "D-Bus Error Msg:" << reply.error().message();
+	// } else {
+	// 	qDebug() << "D-Bus call sent successfully.";
+	// }
 }

@@ -37,6 +37,7 @@ Settings::Settings(QWidget *parent)
 	ui->checkChecksum->setChecked(Config::CHECKSUM_ENABLED);
 	ui->checkFileModTime->setChecked(Config::COPY_FILE_MODIFICATION_TIME);
 	ui->checkSanitizeFilenames->setChecked(Config::SANITIZE_FILENAMES);
+	ui->checkSelectFiles->setChecked(Config::SELECT_FILES_AFTER_COPY);
 	ui->checkCloseOnFinish->setChecked(Config::CLOSE_ON_FINISH);
 	ui->checkTimeLabels->setChecked(Config::SPEED_GRAPH_SHOW_TIME_LABELS);
 	ui->checkAlignRight->setChecked(Config::SPEED_GRAPH_ALIGN_LABELS_RIGHT);
@@ -135,6 +136,7 @@ Settings::Settings(QWidget *parent)
 		ui->checkChecksum->setChecked(Config::Defaults::CHECKSUM_ENABLED);
 		ui->checkFileModTime->setChecked(Config::Defaults::COPY_FILE_MODIFICATION_TIME);
 		ui->checkSanitizeFilenames->setChecked(Config::Defaults::SANITIZE_FILENAMES);
+		ui->checkSelectFiles->setChecked(Config::Defaults::SELECT_FILES_AFTER_COPY);
 		ui->checkCloseOnFinish->setChecked(Config::Defaults::CLOSE_ON_FINISH);
 		ui->checkTimeLabels->setChecked(Config::Defaults::SPEED_GRAPH_SHOW_TIME_LABELS);
 		ui->checkAlignRight->setChecked(Config::Defaults::SPEED_GRAPH_ALIGN_LABELS_RIGHT);
@@ -278,6 +280,7 @@ void Settings::saveSettings() {
 	Config::CHECKSUM_ENABLED = ui->checkChecksum->isChecked();
 	Config::COPY_FILE_MODIFICATION_TIME = ui->checkFileModTime->isChecked();
 	Config::SANITIZE_FILENAMES = ui->checkSanitizeFilenames->isChecked();
+	Config::SELECT_FILES_AFTER_COPY = ui->checkSelectFiles->isChecked();
 	Config::CLOSE_ON_FINISH = ui->checkCloseOnFinish->isChecked();
 	Config::SPEED_GRAPH_SHOW_TIME_LABELS = ui->checkTimeLabels->isChecked();
 	Config::SPEED_GRAPH_ALIGN_LABELS_RIGHT = ui->checkAlignRight->isChecked();

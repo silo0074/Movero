@@ -122,31 +122,24 @@ void CopyWorker::updateProgress(const fs::path &src, const fs::path &dest, qint6
 	m_lastTotalBytesProcessed = m_totalBytesProcessed;
 }
 
-enum class FileSystemType {
-	NTFS,
-	FAT32,
-	EXT, // ext2/3/4
-	Generic
-};
-
-static FileSystemType getFileSystemAt(const std::string &path)
+static CopyWorker::FileSystemType getFileSystemAt(const std::string &path)
 {
 	QStorageInfo storage(QString::fromStdString(path));
 	// Important: QStorageInfo needs to be pointed at an existing directory/root
 	// to identify the volume correctly.
-	QString type = storage.fileSystemType();
+	QByteArray type = storage.fileSystemType();
 
 	if (type == "ntfs")
-		return FileSystemType::NTFS;
+		return CopyWorker::FileSystemType::NTFS;
 	if (type == "vfat" || type == "fat32" || type == "exfat")
-		return FileSystemType::FAT32;
-	if (type.startsWith("ext"))
-		return FileSystemType::EXT;
+		return CopyWorker::FileSystemType::FAT32;
+	if (type.startsWith("ext") || type == "xfs")
+		return CopyWorker::FileSystemType::EXT;
 
-	return FileSystemType::Generic;
+	return CopyWorker::FileSystemType::Generic;
 }
 
-static std::string sanitizeFilename(const std::string &name, FileSystemType fsType)
+static std::string sanitizeFilename(const std::string &name, CopyWorker::FileSystemType fsType)
 {
 	if (name.empty() || name == "." || name == "..")
 		return name;
@@ -159,7 +152,7 @@ static std::string sanitizeFilename(const std::string &name, FileSystemType fsTy
 		"LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
 	};
 
-	bool isRestricted = (fsType == FileSystemType::NTFS || fsType == FileSystemType::FAT32);
+	bool isRestricted = (fsType == CopyWorker::FileSystemType::NTFS || fsType == CopyWorker::FileSystemType::FAT32);
 
 	std::string result;
 	if (isRestricted)
@@ -224,7 +217,7 @@ static std::string sanitizeFilename(const std::string &name, FileSystemType fsTy
 	return result;
 }
 
-static fs::path getSanitizedRelativePath(const fs::path &relPath, FileSystemType fsType) {
+static fs::path getSanitizedRelativePath(const fs::path &relPath, CopyWorker::FileSystemType fsType) {
 	if (!Config::SANITIZE_FILENAMES)
 		return relPath;
 
@@ -240,6 +233,9 @@ void CopyWorker::run() {
 	std::vector<fs::path> sourceDirs; // To clean up empty folders in Move mode
 	uintmax_t totalBytesRequired = 0;
 
+	// Determine the destination filesystem type to apply correct sanitization rules.
+	const CopyWorker::FileSystemType fsType = getFileSystemAt(m_destDir);
+
 	if (Config::DRY_RUN) {
 		// Simulate a file task
 		totalBytesRequired = Config::DRY_RUN_FILE_SIZE;
@@ -251,8 +247,6 @@ void CopyWorker::run() {
 		// PHASE 1: Scan, Map, and Calculate Size
 		emit statusChanged(Scanning);
 
-		// Determine the destination filesystem type to apply correct sanitization rules.
-		const FileSystemType fsType = getFileSystemAt(m_destDir);
 
 		for (const auto &srcStr : m_sources) {
 			fs::path srcRoot(srcStr);
@@ -265,35 +259,35 @@ void CopyWorker::run() {
 
 			if (fs::is_symlink(srcRoot)) {
 				fs::path rel = fs::relative(srcRoot, base);
-				tasks.push_back({srcRoot, fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType)});
+				tasks.push_back({srcRoot, fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType), true});
 			} else if (fs::is_directory(srcRoot)) {
 				sourceDirs.push_back(srcRoot);
 				fs::path rel = fs::relative(srcRoot, base);
 				fs::path destDir = fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType);
-				tasks.push_back({srcRoot, destDir});
+				tasks.push_back({srcRoot, destDir, true});
 
 				for (const auto &entry : fs::recursive_directory_iterator(srcRoot)) {
 					if (m_cancelled)
 						return;
 					if (entry.is_symlink()) {
 						fs::path rel = fs::relative(entry.path(), base);
-						tasks.push_back({entry.path(), fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType)});
+						tasks.push_back({entry.path(), fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType), false});
 					} else if (entry.is_directory()) {
 						sourceDirs.push_back(entry.path());
 						fs::path rel = fs::relative(entry.path(), base);
 						fs::path destDir = fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType);
-						tasks.push_back({entry.path(), destDir});
+						tasks.push_back({entry.path(), destDir, false});
 
 					} else if (entry.is_regular_file()) {
 						totalBytesRequired += entry.file_size();
 						fs::path rel = fs::relative(entry.path(), base);
-						tasks.push_back({entry.path(), fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType)});
+						tasks.push_back({entry.path(), fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType), false});
 					}
 				}
 			} else {
 				totalBytesRequired += fs::file_size(srcRoot);
 				fs::path rel = fs::relative(srcRoot, base);
-				tasks.push_back({srcRoot, fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType)});
+				tasks.push_back({srcRoot, fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType), true});
 			}
 		}
 	}
@@ -333,6 +327,7 @@ void CopyWorker::run() {
 	m_completedFilesSize = 0;
 	m_lastSampleTime = m_overallStartTime;
 	m_lastTotalBytesProcessed = 0;
+	m_unflushedBytes = 0;
 	m_totalBytesCopied = 0;
 
 	// Adjust graph history size for small files to avoid empty looking graph
@@ -348,11 +343,10 @@ void CopyWorker::run() {
 	// Allocate buffer once for the entire job to avoid malloc/free overhead per file
 	// Use aligned_alloc instead of std::vector for maximum performance
 	size_t allocSize = Config::BUFFER_SIZE;
-	if (allocSize % ALIGNMENT != 0)
+	if (allocSize % ALIGNMENT != 0){
 		allocSize = (allocSize + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
+	}
 	
-	LOG(LogLevel::DEBUG) << "Buffer size:" << allocSize;
-
 	// Allocate memory
 	// aligned_alloc requires size to be a multiple of alignment
 	void *rawPtr = std::aligned_alloc(ALIGNMENT, allocSize);
@@ -378,6 +372,10 @@ void CopyWorker::run() {
 			if (!fs::exists(task.dest)) {
 				fs::create_directories(task.dest);
 			}
+			// Emit completion for top-level directories so they can be highlighted
+			if (task.isTopLevel) {
+				emit fileCompleted(QString::fromStdString(task.dest.string()), "", "", true);
+			}
 			if (Config::COPY_FILE_MODIFICATION_TIME) {
 				std::error_code ec;
 				fs::last_write_time(task.dest, fs::last_write_time(task.src, ec), ec);
@@ -392,7 +390,7 @@ void CopyWorker::run() {
 			continue;
 		}
 
-		// 1. Space Check (Per File)
+		// Space Check (Per File)
 		uintmax_t currentFileSize = 0;
 		if (!isSymlink) {
 			try {
@@ -406,7 +404,7 @@ void CopyWorker::run() {
 			}
 		}
 
-		// 2. Existence Check & Conflict Resolution
+		// Existence Check & Conflict Resolution
 		if (fs::exists(task.dest) || fs::is_symlink(task.dest)) {
 			ConflictAction action = m_savedAction;
 			LOG(LogLevel::INFO) << "File already exists:" << task.dest.string();
@@ -506,6 +504,11 @@ void CopyWorker::run() {
 					fs::remove(task.src);
 				}
 
+				// Emit completion for symlinks
+				if (task.isTopLevel) {
+					emit fileCompleted(QString::fromStdString(task.dest.string()), "", "", true);
+				}
+
 				// Update UI so it doesn't look stuck
 				emit progressChanged(QString::fromStdString(task.src.string()), 
 									QString::fromStdString(task.dest.string()),
@@ -528,8 +531,10 @@ void CopyWorker::run() {
 			continue;
 		}
 
-		// copyFile returns true ONLY if verification succeeds
-		if (copyFile(task.src, task.dest, buffer.get(), allocSize)) { // copyFile verifies checksum
+		// copyFile returns true ONLY if checksum verification succeeds
+		if (copyFile(task.src, task.dest, buffer.get(), allocSize, task.isTopLevel, 
+					(&task == &tasks.back()), fsType)) 
+		{
 			if (m_mode == Move && !Config::DRY_RUN) {
 				fs::remove(task.src);
 			}
@@ -569,7 +574,7 @@ void CopyWorker::run() {
 }
 
 
-bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffer, size_t bufferSize) {
+bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffer, size_t bufferSize, bool isTopLevel, bool isLastFile, FileSystemType fsType) {
 	int fd_in = -1;
 
 	// Open the source file only if not in dry run mode
@@ -586,7 +591,8 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 		posix_fadvise(fd_in, 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_NOREUSE);
 	}
 
-	int fd_out = open(dest.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	// Open O_RDWR so we can read it back for verification without closing/reopening
+	int fd_out = open(dest.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644);
 
 	if ((!Config::DRY_RUN && fd_in < 0) || (fd_out < 0)) {
 		emit errorOccurred({FileOpenFailed, QString::fromStdString(src.string())});
@@ -663,6 +669,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 
 		totalRead += bytesRead;
 		m_totalBytesProcessed += bytesRead;
+		m_unflushedBytes += bytesRead;
 		m_totalBytesCopied += bytesRead;
 
 		// Calculate and update speed
@@ -701,6 +708,18 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 		100, totalPercent, 0, 0, 0
 	);
 
+	// Grouped Syncing Logic
+	// Only sync if we have accumulated enough bytes or this is the last file.
+	bool shouldSync = (m_unflushedBytes >= 64 * 1024 * 1024) || isLastFile;
+	bool useSyncFileRange = (fsType == FileSystemType::EXT); // Only for EXT and XFS
+
+	// Start flushing to disk asynchronously while we calculate the hash
+	if (shouldSync && useSyncFileRange) {
+		// Start the write-out (Non-blocking)
+		sync_file_range(fd_out, 0, 0, SYNC_FILE_RANGE_WRITE);
+		LOG(LogLevel::DEBUG) << "sync_file_range";
+	}
+
 	// If we are here, the copy phase finished successfully.
 	// Calculate Source Hash
 	uint64_t srcHash = 0;
@@ -714,17 +733,19 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 	if (fd_in >= 0)	close(fd_in);
 
 	// Ensure data is on disk before verification
-	// Hybrid Strategy:
-	// Small files: Skip sync to avoid massive IOPS bottleneck (verifies against Cache).
-	// Large files: Force sync to ensure physical integrity.
 	// We only force sync if Checksum is enabled (to verify from disk) OR if Moving (safety).
-	uintmax_t syncThreshold = static_cast<uintmax_t>(Config::SYNC_THRESHOLD_MB) * 1024 * 1024;
-
-	if (fileSize >= syncThreshold && (Config::CHECKSUM_ENABLED || m_mode == Move)) {
-		fdatasync(fd_out);
+	if (shouldSync && (Config::CHECKSUM_ENABLED || m_mode == Move)) {
+		if (useSyncFileRange) {
+			// Wait for completion (Blocking)
+			sync_file_range(fd_out, 0, 0, SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE | SYNC_FILE_RANGE_WAIT_AFTER);
+		} else {
+			// Fallback for other filesystems
+			fdatasync(fd_out);
+		}
+		
+		// Reset counter after sync
+		m_unflushedBytes = 0;
 	}
-
-	close(fd_out);
 
 	// File modification time
 	// Using std::error_code is a good safety measure to prevent exceptions
@@ -736,15 +757,10 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 		fs::last_write_time(dest, fs::last_write_time(src, ec), ec);
 	}
 
-	// Open the file again briefly just to invalidate the cache for it
-	// Only drop cache for larger files (>16MB) to avoid thrashing on small files
-	if (Config::CHECKSUM_ENABLED && fileSize >= syncThreshold) {
-		int fd_drop = open(dest.c_str(), O_RDONLY);
-		if (fd_drop >= 0) {
-			// Tell the OS: "I'm done with this, throw it out of RAM."
-			posix_fadvise(fd_drop, 0, 0, POSIX_FADV_DONTNEED);
-			close(fd_drop);
-		}
+	// Only drop cache if we actually synced (meaning we hit the threshold)
+	if (Config::CHECKSUM_ENABLED && shouldSync) {
+		// Tell the OS: "I'm done with this, throw it out of RAM."
+		posix_fadvise(fd_out, 0, 0, POSIX_FADV_DONTNEED);
 	}
 
 	// Verify Phase (Read from disk)
@@ -752,7 +768,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 	bool checksumFailed = false;
 
 	if (Config::CHECKSUM_ENABLED) {
-		if (!verifyFile(src, dest, srcHash, diskHash, buffer, bufferSize)) {
+		if (!verifyFile(src, dest, fd_out, srcHash, diskHash, buffer, bufferSize)) {
 			LOG(LogLevel::ERROR) << "Verification failed:" << dest.c_str();
 			// Verification failed or was cancelled during verification
 			try {
@@ -764,11 +780,14 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 		}
 	}
 
+	close(fd_out);
+
 	// Emit completion signal with hashes
 	emit fileCompleted(
 		QString::fromStdString(dest.string()),
 		Config::CHECKSUM_ENABLED ? QString::number(srcHash, 16) : "",
-		Config::CHECKSUM_ENABLED ? QString::number(diskHash, 16) : ""
+		Config::CHECKSUM_ENABLED ? QString::number(diskHash, 16) : "",
+		isTopLevel
 	);
 
 	if (checksumFailed){
@@ -782,6 +801,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 bool CopyWorker::verifyFile(
 	const std::filesystem::path &src,
 	const std::filesystem::path &dest,
+	int fd_dest,
 	uint64_t expectedHash,
 	uint64_t &outDiskHash,
 	char *buffer,
@@ -796,21 +816,22 @@ bool CopyWorker::verifyFile(
 	bool useDirect = false;
 	qint64 fileSize = fs::file_size(dest);
 
-	if (fileSize >= syncThreshold) {
+	// Optimization: Skip O_DIRECT entirely for files smaller than alignment
+	if (fileSize >= syncThreshold && fileSize >= ALIGNMENT) {
 		useDirect = true;
 	}
 
-	int flags = O_RDONLY;
-	if (useDirect) flags |= O_DIRECT;
+	// Reuse the existing file descriptor
+	int fd = fd_dest;
+	lseek(fd, 0, SEEK_SET);
 
-	int fd = open(dest.c_str(), flags);
-
-	if (fd < 0) {
-		// Fallback if O_DIRECT failed (e.g. tmpfs or unsupported fs)
-		// Some filesystems/OSs don't support O_DIRECT
-		fd = open(dest.c_str(), O_RDONLY);
+	// Try to enable O_DIRECT on the existing FD if requested
+	int originalFlags = fcntl(fd, F_GETFL);
+	if (useDirect) {
+		if (fcntl(fd, F_SETFL, originalFlags | O_DIRECT) < 0) {
+			useDirect = false; // Fallback to buffered if O_DIRECT fails
+		}
 	}
-	if (fd < 0)	return false;
 	
 	if (!useDirect) {
 		// Hint sequential access for buffered reads
@@ -877,7 +898,11 @@ bool CopyWorker::verifyFile(
 
 	outDiskHash = XXH64_digest(state);
 	XXH64_freeState(state);
-	close(fd);
+
+	// Restore flags if we changed them (though we are about to close it in copyFile)
+	if (useDirect) {
+		fcntl(fd, F_SETFL, originalFlags);
+	}
 
 	if (outDiskHash != expectedHash) {
 		return false;

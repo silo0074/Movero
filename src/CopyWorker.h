@@ -16,6 +16,13 @@ class CopyWorker : public QThread {
 	static constexpr size_t ALIGNMENT = 4096;
 
 public:
+	enum FileSystemType {
+		NTFS,
+		FAT32,
+		EXT, // ext2/3/4, xfs
+		Generic
+	};
+
 	enum Mode {
 		Copy,
 		Move
@@ -75,7 +82,7 @@ signals:
 	void finished();
 	void errorOccurred(FileError error);
 	void conflictNeeded(QString src, QString dest, QString suggestedName);
-	void fileCompleted(QString path, QString srcHash, QString destHash);
+	void fileCompleted(QString path, QString srcHash, QString destHash, bool isTopLevel);
 
 protected:
 	void run() override;
@@ -104,16 +111,18 @@ private:
 	uintmax_t m_totalBytesProcessed = 0; // Global counter
 	std::chrono::steady_clock::time_point m_lastSampleTime;
 	uintmax_t m_lastTotalBytesProcessed = 0;
+	uintmax_t m_unflushedBytes = 0; // Track bytes written since last sync
 
 	struct CopyTask {
 		std::filesystem::path src;
 		std::filesystem::path dest;
+		bool isTopLevel = false;
 	};
 
 	// Buffer size: 1MB is a good balance for modern NVMe
 	const size_t BUFFER_SIZE = Config::BUFFER_SIZE;
 
-	bool copyFile(const std::filesystem::path &src, const std::filesystem::path &dest, char *buffer, size_t bufferSize);
-	bool verifyFile(const std::filesystem::path &src, const std::filesystem::path &dest, uint64_t expectedHash, uint64_t &diskHash, char *buffer, size_t bufferSize);
+	bool copyFile(const std::filesystem::path &src, const std::filesystem::path &dest, char *buffer, size_t bufferSize, bool isTopLevel, bool isLastFile, FileSystemType fsType);
+	bool verifyFile(const std::filesystem::path &src, const std::filesystem::path &dest, int fd_dest, uint64_t expectedHash, uint64_t &diskHash, char *buffer, size_t bufferSize);
 	void updateProgress(const std::filesystem::path &src, const std::filesystem::path &dest, qint64 totalRead, qint64 fileSize);
 };
