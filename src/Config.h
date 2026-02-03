@@ -30,6 +30,7 @@ namespace Config {
 		inline constexpr int SPEED_GRAPH_HISTORY_SIZE = 200;
 		inline constexpr int SPEED_GRAPH_HISTORY_SIZE_USER = 200;
 		inline constexpr double SPEED_GRAPH_MAX_SPEED = 10.0;
+		inline constexpr int SYNC_THRESHOLD_MB = 4;
 	} // namespace Defaults
 
 	// ----------- App details ------------------
@@ -101,6 +102,9 @@ namespace Config {
 	// updates targetMax, and m_maxSpeed follows it using smoothing.
 	// This allows the graph to "grow" vertically if the drive performs better than expected.
 	inline double SPEED_GRAPH_MAX_SPEED = Defaults::SPEED_GRAPH_MAX_SPEED;
+
+	// Files larger than this (in MB) will be forced to disk (fdatasync)
+	inline int SYNC_THRESHOLD_MB = Defaults::SYNC_THRESHOLD_MB;
 
 	// ------------------- CopyWorker ---------------------------
 	// 8MB is widely considered the peak performance point for high-speed I/O

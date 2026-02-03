@@ -34,6 +34,7 @@ set(SOURCES
     src/Settings.cpp
     src/Config.cpp
     src/CopyWorker.cpp
+    src/StartupHandler.cpp
     src/DetailsWindow.cpp
     src/MainWindow.ui
     src/Settings.ui
@@ -45,6 +46,7 @@ set(HEADERS
     src/Settings.h
     src/Config.h
     src/CopyWorker.h
+    src/StartupHandler.h
     src/DetailsWindow.h
 )
 

@@ -13,6 +13,8 @@
 class CopyWorker : public QThread {
 	Q_OBJECT
 
+	static constexpr size_t ALIGNMENT = 4096;
+
 public:
 	enum Mode {
 		Copy,
@@ -100,6 +102,8 @@ private:
 	std::chrono::duration<double> m_totalPausedDuration{0};
 	uintmax_t m_totalWorkBytes = 0; // (Size of all files * 2)
 	uintmax_t m_totalBytesProcessed = 0; // Global counter
+	std::chrono::steady_clock::time_point m_lastSampleTime;
+	uintmax_t m_lastTotalBytesProcessed = 0;
 
 	struct CopyTask {
 		std::filesystem::path src;
@@ -109,7 +113,7 @@ private:
 	// Buffer size: 1MB is a good balance for modern NVMe
 	const size_t BUFFER_SIZE = Config::BUFFER_SIZE;
 
-	bool copyFile(const std::filesystem::path &src, const std::filesystem::path &dest);
-	bool verifyFile(const std::filesystem::path &src, const std::filesystem::path &dest, uint64_t expectedHash, uint64_t &diskHash);
-	void updateProgress(const std::filesystem::path &src, const std::filesystem::path &dest, qint64 totalRead, qint64 fileSize, qint64 &lastBytesRead, std::chrono::steady_clock::time_point &lastSampleTime);
+	bool copyFile(const std::filesystem::path &src, const std::filesystem::path &dest, char *buffer, size_t bufferSize);
+	bool verifyFile(const std::filesystem::path &src, const std::filesystem::path &dest, uint64_t expectedHash, uint64_t &diskHash, char *buffer, size_t bufferSize);
+	void updateProgress(const std::filesystem::path &src, const std::filesystem::path &dest, qint64 totalRead, qint64 fileSize);
 };

@@ -42,6 +42,7 @@ Settings::Settings(QWidget *parent)
 	ui->checkAlignRight->setChecked(Config::SPEED_GRAPH_ALIGN_LABELS_RIGHT);
 	ui->spinHistorySize->setValue(Config::SPEED_GRAPH_HISTORY_SIZE_USER);
 	ui->spinMaxSpeed->setValue(Config::SPEED_GRAPH_MAX_SPEED);
+	ui->spinSyncThreshold->setValue(Config::SYNC_THRESHOLD_MB);
 
 	// Menu Navigation
 	connect(ui->listWidgetMenu, &QListWidget::currentRowChanged, ui->stackedWidget, &QStackedWidget::setCurrentIndex);
@@ -139,6 +140,7 @@ Settings::Settings(QWidget *parent)
 		ui->checkAlignRight->setChecked(Config::Defaults::SPEED_GRAPH_ALIGN_LABELS_RIGHT);
 		ui->spinHistorySize->setValue(Config::Defaults::SPEED_GRAPH_HISTORY_SIZE_USER);
 		ui->spinMaxSpeed->setValue(Config::Defaults::SPEED_GRAPH_MAX_SPEED);
+		ui->spinSyncThreshold->setValue(Config::Defaults::SYNC_THRESHOLD_MB);
 
 		QString defLang = Config::Defaults::LANGUAGE;
 		int defLangIdx = ui->comboLanguage->findData(defLang);
@@ -282,6 +284,7 @@ void Settings::saveSettings() {
 	Config::SPEED_GRAPH_HISTORY_SIZE_USER = ui->spinHistorySize->value();
 	Config::SPEED_GRAPH_HISTORY_SIZE = Config::SPEED_GRAPH_HISTORY_SIZE_USER;
 	Config::SPEED_GRAPH_MAX_SPEED = ui->spinMaxSpeed->value();
+	Config::SYNC_THRESHOLD_MB = ui->spinSyncThreshold->value();
 	Config::LANGUAGE = ui->comboLanguage->currentData().toString();
 
 	Config::save();

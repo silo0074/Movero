@@ -204,6 +204,27 @@
           </layout>
          </item>
          <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_Sync">
+           <item>
+            <widget class="QLabel" name="label_Sync">
+             <property name="text">
+              <string>Force Sync Threshold (MB):</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="spinSyncThreshold">
+             <property name="toolTip">
+              <string>Files larger than this will be forced to disk to ensure physical integrity.</string>
+             </property>
+             <property name="maximum">
+              <number>10240</number>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
           <widget class="QCheckBox" name="checkTestMode">
            <property name="toolTip">
             <string>No data will be copied to disk</string>

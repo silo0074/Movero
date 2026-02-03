@@ -86,11 +86,10 @@ static fs::path generateAutoRename(const fs::path &path) {
 	}
 }
 
-void CopyWorker::updateProgress(const fs::path &src, const fs::path &dest, qint64 fileRead, qint64 fileSize,
-	qint64 &lastBytesRead, std::chrono::steady_clock::time_point &lastSampleTime) {
-
+void CopyWorker::updateProgress(const fs::path &src, const fs::path &dest, qint64 fileRead, qint64 fileSize)
+{
 	auto now = std::chrono::steady_clock::now();
-	std::chrono::duration<double> elapsedSinceLast = now - lastSampleTime;
+	std::chrono::duration<double> elapsedSinceLast = now - m_lastSampleTime;
 
 	if (elapsedSinceLast.count() < Config::SPEED_UPDATE_INTERVAL)
 		return;
@@ -108,19 +107,19 @@ void CopyWorker::updateProgress(const fs::path &src, const fs::path &dest, qint6
 	uintmax_t bytesLeft = m_totalWorkBytes - m_totalBytesProcessed;
 	long secondsLeft = -1;
 
-	if (avgMbps > 0.5) {
+	if (avgMbps > 0.01) {
 		secondsLeft = static_cast<long>((bytesLeft / (1024.0 * 1024.0)) / avgMbps);
 	}
 
 	// Pass the instantaneous speed for the graph, and avg/eta for the labels
-	double curMbps = ((fileRead - lastBytesRead) / (1024.0 * 1024.0)) / elapsedSinceLast.count();
+	double curMbps = ((m_totalBytesProcessed - m_lastTotalBytesProcessed) / (1024.0 * 1024.0)) / elapsedSinceLast.count();
 
 	emit progressChanged(QString::fromStdString(src.string()),
 		QString::fromStdString(dest.string()),
 		filePercent, totalPercent, curMbps, avgMbps, secondsLeft);
 
-	lastSampleTime = now;
-	lastBytesRead = fileRead;
+	m_lastSampleTime = now;
+	m_lastTotalBytesProcessed = m_totalBytesProcessed;
 }
 
 enum class FileSystemType {
@@ -269,6 +268,10 @@ void CopyWorker::run() {
 				tasks.push_back({srcRoot, fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType)});
 			} else if (fs::is_directory(srcRoot)) {
 				sourceDirs.push_back(srcRoot);
+				fs::path rel = fs::relative(srcRoot, base);
+				fs::path destDir = fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType);
+				tasks.push_back({srcRoot, destDir});
+
 				for (const auto &entry : fs::recursive_directory_iterator(srcRoot)) {
 					if (m_cancelled)
 						return;
@@ -277,6 +280,10 @@ void CopyWorker::run() {
 						tasks.push_back({entry.path(), fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType)});
 					} else if (entry.is_directory()) {
 						sourceDirs.push_back(entry.path());
+						fs::path rel = fs::relative(entry.path(), base);
+						fs::path destDir = fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType);
+						tasks.push_back({entry.path(), destDir});
+
 					} else if (entry.is_regular_file()) {
 						totalBytesRequired += entry.file_size();
 						fs::path rel = fs::relative(entry.path(), base);
@@ -316,13 +323,17 @@ void CopyWorker::run() {
 	// PHASE 2: Execute Tasks
 	int totalFiles = tasks.size();
 	int processed = 0;
-
 	m_overallStartTime = std::chrono::steady_clock::now();
 	m_totalPausedDuration = std::chrono::duration<double>::zero();
 	m_totalBytesProcessed = 0;
 	m_totalSizeToCopy = totalBytesRequired;
 	m_totalWorkBytes = totalBytesRequired * (Config::CHECKSUM_ENABLED ? 2 : 1); // Copying + Optional Verifying
+	// Prevent division by zero if the job consists only of empty folders (0 bytes)
+	if (m_totalWorkBytes == 0) m_totalWorkBytes = 1;
 	m_completedFilesSize = 0;
+	m_lastSampleTime = m_overallStartTime;
+	m_lastTotalBytesProcessed = 0;
+	m_totalBytesCopied = 0;
 
 	// Adjust graph history size for small files to avoid empty looking graph
 	// Heuristic: 1 MB per point. Min 50 points (5 seconds).
@@ -330,17 +341,57 @@ void CopyWorker::run() {
 	int minPoints = 10;
 	Config::SPEED_GRAPH_HISTORY_SIZE = std::min(Config::SPEED_GRAPH_HISTORY_SIZE_USER, 
 												std::max(minPoints, calculatedPoints));
-	m_totalBytesCopied = 0;
 
 	// Emit total files to copy
 	emit totalProgress(processed, totalFiles);
 
+	// Allocate buffer once for the entire job to avoid malloc/free overhead per file
+	// Use aligned_alloc instead of std::vector for maximum performance
+	size_t allocSize = Config::BUFFER_SIZE;
+	if (allocSize % ALIGNMENT != 0)
+		allocSize = (allocSize + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
+	
+	LOG(LogLevel::DEBUG) << "Buffer size:" << allocSize;
+
+	// Allocate memory
+	// aligned_alloc requires size to be a multiple of alignment
+	void *rawPtr = std::aligned_alloc(ALIGNMENT, allocSize);
+	if (!rawPtr) {
+		emit errorOccurred({SourceOpenFailed, "", "Memory allocation failed"});
+		return;
+	}
+
+	// Use unique_ptr with a custom deleter so it calls free() automatically
+	std::unique_ptr<char, decltype(&std::free)> 
+							buffer(static_cast<char *>(rawPtr), std::free);
+
+	auto lastProgressTime = std::chrono::steady_clock::now();
+
 	for (auto &task : tasks) {
-		if (m_cancelled)
-			break;
+		if (m_cancelled) break;
 		fs::create_directories(task.dest.parent_path());
 
 		bool isSymlink = fs::is_symlink(task.src);
+
+		// Handle Directories
+		if (fs::is_directory(task.src) && !isSymlink) {
+			if (!fs::exists(task.dest)) {
+				fs::create_directories(task.dest);
+			}
+			if (Config::COPY_FILE_MODIFICATION_TIME) {
+				std::error_code ec;
+				fs::last_write_time(task.dest, fs::last_write_time(task.src, ec), ec);
+			}
+			processed++;
+			// Throttle progress updates for directories
+			auto now = std::chrono::steady_clock::now();
+			if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
+				emit totalProgress(processed, totalFiles);
+				lastProgressTime = now;
+			}
+			continue;
+		}
+
 		// 1. Space Check (Per File)
 		uintmax_t currentFileSize = 0;
 		if (!isSymlink) {
@@ -358,7 +409,7 @@ void CopyWorker::run() {
 		// 2. Existence Check & Conflict Resolution
 		if (fs::exists(task.dest) || fs::is_symlink(task.dest)) {
 			ConflictAction action = m_savedAction;
-			LOG(LogLevel::DEBUG) << "File already exists:" << task.dest.string();
+			LOG(LogLevel::INFO) << "File already exists:" << task.dest.string();
 
 			if (!m_applyAll) {
 				fs::path suggested = generateAutoRename(task.dest);
@@ -367,9 +418,11 @@ void CopyWorker::run() {
 				QMutexLocker locker(&m_inputMutex);
 				m_waitingForUser = true;
 
-				emit conflictNeeded(QString::fromStdString(task.src.string()),
+				emit conflictNeeded(
+					QString::fromStdString(task.src.string()),
 					QString::fromStdString(task.dest.string()),
-					QString::fromStdString(suggested.filename().string()));
+					QString::fromStdString(suggested.filename().string())
+				);
 
 				// Now wait safely
 				while (m_waitingForUser && !m_cancelled) {
@@ -395,7 +448,12 @@ void CopyWorker::run() {
 				m_totalWorkBytes -= (fSize * (Config::CHECKSUM_ENABLED ? 2 : 1));
 				m_totalSizeToCopy -= fSize;
 
-				emit totalProgress(processed, totalFiles);
+				// Throttle progress
+				auto now = std::chrono::steady_clock::now();
+				if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
+					emit totalProgress(processed, totalFiles);
+					lastProgressTime = now;
+				}
 				continue;
 
 			} else if (action == Rename) {
@@ -461,20 +519,30 @@ void CopyWorker::run() {
 				emit errorOccurred({WriteError, QString::fromStdString(task.src.string())});
 			}
 			processed++;
-			emit totalProgress(processed, totalFiles);
+			// Throttle progress
+			auto now = std::chrono::steady_clock::now();
+			if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
+				emit totalProgress(processed, totalFiles);
+				lastProgressTime = now;
+			}
 			continue;
 		}
 
 		// copyFile returns true ONLY if verification succeeds
-		LOG(LogLevel::DEBUG) << "Copying file";
-		if (copyFile(task.src, task.dest)) { // copyFile verifies checksum
+		if (copyFile(task.src, task.dest, buffer.get(), allocSize)) { // copyFile verifies checksum
 			if (m_mode == Move && !Config::DRY_RUN) {
 				fs::remove(task.src);
 			}
 			m_completedFilesSize += currentFileSize;
 		}
 		processed++;
-		emit totalProgress(processed, totalFiles);
+		
+		// Throttle total progress updates (e.g. max 20 times per second)
+		auto now = std::chrono::steady_clock::now();
+		if (processed == totalFiles || std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
+			emit totalProgress(processed, totalFiles);
+				lastProgressTime = now;
+		}
 	}
 
 	// PHASE 3: Cleanup (Move Mode Only)
@@ -497,11 +565,11 @@ void CopyWorker::run() {
 		}
 	}
 
-	LOG(LogLevel::WARNING) << "emit finished";
 	emit finished();
 }
 
-bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
+
+bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffer, size_t bufferSize) {
 	int fd_in = -1;
 
 	// Open the source file only if not in dry run mode
@@ -535,37 +603,14 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 		XXH64_reset(hashState, 0);
 	}
 
-	// Use aligned_alloc instead of std::vector for maximum performance
-	// See verifyFile() for comments.
-	const size_t ALIGNMENT = 4096; // Standard page size
-
-	// Allocate memory
-	// aligned_alloc requires size to be a multiple of alignment
-	size_t allocSize = Config::BUFFER_SIZE;
-	if (allocSize % ALIGNMENT != 0)
-		allocSize = (allocSize + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
-	void *rawPtr = std::aligned_alloc(ALIGNMENT, allocSize);
-	if (!rawPtr)
-		return false;
-
-	// Use unique_ptr with a custom deleter so it calls free() automatically
-	std::unique_ptr<char, decltype(&std::free)> buffer(static_cast<char *>(rawPtr), std::free);
-
-	// std::vector<char> buffer(BUFFER_SIZE, 0); // Initialize with zeros
-
 	qint64 totalRead = 0;
 	qint64 fileSize = Config::DRY_RUN ? (Config::DRY_RUN_FILE_SIZE) : fs::file_size(src);
-	auto startTime = std::chrono::steady_clock::now();
-	auto lastSampleTime = startTime;
-	ssize_t bytesRead;
-	qint64 lastBytesRead = 0;
 
 	emit statusChanged(Copying); // Notify UI
 
 	// Read source file and write to destination
 	while (totalRead < fileSize) {
-		if (m_cancelled)
-			break;
+		if (m_cancelled) break;
 
 		// Pause Logic
 		if (m_paused) {
@@ -579,11 +624,11 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 
 			// Reset the sampling clock so the pause duration isn't
 			// counted as "active time" in the next speed calculation.
-			lastSampleTime = pauseEnd;
-			lastBytesRead = totalRead;
+			m_lastSampleTime = pauseEnd;
+			m_lastTotalBytesProcessed = m_totalBytesProcessed;
 		}
 
-		size_t toRead = std::min((qint64)Config::BUFFER_SIZE, fileSize - totalRead);
+		size_t toRead = std::min((qint64)bufferSize, fileSize - totalRead);
 		ssize_t bytesRead;
 
 		if (Config::DRY_RUN) {
@@ -592,7 +637,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 			// This prevents the "instant" processing that causes GB/s spikes
 			QThread::msleep(10);
 		} else {
-			bytesRead = read(fd_in, buffer.get(), toRead);
+			bytesRead = read(fd_in, buffer, toRead);
 		}
 
 		if (bytesRead < 0) {
@@ -606,11 +651,11 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 
 		// Calculate Hash on the fly
 		if (Config::CHECKSUM_ENABLED) {
-			XXH64_update(hashState, buffer.get(), bytesRead);
+			XXH64_update(hashState, buffer, bytesRead);
 		}
 
 		// Write
-		ssize_t written = write(fd_out, buffer.get(), bytesRead);
+		ssize_t written = write(fd_out, buffer, bytesRead);
 		if (written != bytesRead) {
 			emit errorOccurred({WriteError, QString::fromStdString(src.string())});
 			break;
@@ -621,7 +666,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 		m_totalBytesCopied += bytesRead;
 
 		// Calculate and update speed
-		updateProgress(src, dest, totalRead, fileSize, lastBytesRead, lastSampleTime);
+		updateProgress(src, dest, totalRead, fileSize);
 	}
 
 	// --- CLEANUP & CHECK PHASE ---
@@ -647,6 +692,15 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 		return false;
 	}
 
+	// Force 100% and reset speed graph after copying
+	int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
+
+	emit progressChanged(
+		QString::fromStdString(src.string()),
+		QString::fromStdString(dest.string()),
+		100, totalPercent, 0, 0, 0
+	);
+
 	// If we are here, the copy phase finished successfully.
 	// Calculate Source Hash
 	uint64_t srcHash = 0;
@@ -657,11 +711,19 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 		XXH64_freeState(hashState);
 	}
 
-	if (fd_in >= 0)
-		close(fd_in);
+	if (fd_in >= 0)	close(fd_in);
 
 	// Ensure data is on disk before verification
-	fdatasync(fd_out);
+	// Hybrid Strategy:
+	// Small files: Skip sync to avoid massive IOPS bottleneck (verifies against Cache).
+	// Large files: Force sync to ensure physical integrity.
+	// We only force sync if Checksum is enabled (to verify from disk) OR if Moving (safety).
+	uintmax_t syncThreshold = static_cast<uintmax_t>(Config::SYNC_THRESHOLD_MB) * 1024 * 1024;
+
+	if (fileSize >= syncThreshold && (Config::CHECKSUM_ENABLED || m_mode == Move)) {
+		fdatasync(fd_out);
+	}
+
 	close(fd_out);
 
 	// File modification time
@@ -674,18 +736,15 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 		fs::last_write_time(dest, fs::last_write_time(src, ec), ec);
 	}
 
-	// Force 100% and reset speed graph after copying
-	int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
-	emit progressChanged(QString::fromStdString(src.string()),
-		QString::fromStdString(dest.string()),
-		100, totalPercent, 0.0, 0.0, 0);
-
 	// Open the file again briefly just to invalidate the cache for it
-	int fd_drop = open(dest.c_str(), O_RDONLY);
-	if (fd_drop >= 0) {
-		// Tell the OS: "I'm done with this, throw it out of RAM."
-		posix_fadvise(fd_drop, 0, 0, POSIX_FADV_DONTNEED);
-		close(fd_drop);
+	// Only drop cache for larger files (>16MB) to avoid thrashing on small files
+	if (Config::CHECKSUM_ENABLED && fileSize >= syncThreshold) {
+		int fd_drop = open(dest.c_str(), O_RDONLY);
+		if (fd_drop >= 0) {
+			// Tell the OS: "I'm done with this, throw it out of RAM."
+			posix_fadvise(fd_drop, 0, 0, POSIX_FADV_DONTNEED);
+			close(fd_drop);
+		}
 	}
 
 	// Verify Phase (Read from disk)
@@ -693,7 +752,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 	bool checksumFailed = false;
 
 	if (Config::CHECKSUM_ENABLED) {
-		if (!verifyFile(src, dest, srcHash, diskHash)) {
+		if (!verifyFile(src, dest, srcHash, diskHash, buffer, bufferSize)) {
 			LOG(LogLevel::ERROR) << "Verification failed:" << dest.c_str();
 			// Verification failed or was cancelled during verification
 			try {
@@ -702,14 +761,15 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 			} catch (...) {	}
 			m_totalBytesCopied -= totalRead;
 			checksumFailed = true;
-			// return false;
 		}
 	}
 
 	// Emit completion signal with hashes
-	emit fileCompleted(QString::fromStdString(dest.string()),
+	emit fileCompleted(
+		QString::fromStdString(dest.string()),
 		Config::CHECKSUM_ENABLED ? QString::number(srcHash, 16) : "",
-		Config::CHECKSUM_ENABLED ? QString::number(diskHash, 16) : "");
+		Config::CHECKSUM_ENABLED ? QString::number(diskHash, 16) : ""
+	);
 
 	if (checksumFailed){
 		emit errorOccurred({ChecksumMismatch, QString::fromStdString(dest.string())});
@@ -719,66 +779,51 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest) {
 }
 
 
-bool CopyWorker::verifyFile(const std::filesystem::path &src,
+bool CopyWorker::verifyFile(
+	const std::filesystem::path &src,
 	const std::filesystem::path &dest,
 	uint64_t expectedHash,
-	uint64_t &outDiskHash) {
+	uint64_t &outDiskHash,
+	char *buffer,
+	size_t bufferSize) 
+{
+	uintmax_t syncThreshold = static_cast<uintmax_t>(Config::SYNC_THRESHOLD_MB) * 1024 * 1024;
 	emit statusChanged(Verifying); // Update UI status
 
-	// Open with O_DIRECT to bypass OS cache entirely
-	// O_DIRECT: This forces the read to bypass the OS Page Cache,
-	// ensuring the checksum is calculated against the actual bits on the physical media.
-	int fd = open(dest.c_str(), O_RDONLY | O_DIRECT);
+	// Hybrid Strategy for Verification:
+	// Small files: Standard buffered read (fast, reads from Cache if we skipped fdatasync).
+	// Large files: O_DIRECT (safe, reads from Disk, requires fdatasync to have happened).
+	bool useDirect = false;
+	qint64 fileSize = fs::file_size(dest);
 
-	// Fallback: Some filesystems/OSs don't support O_DIRECT
-	// For simplicity and compatibility, we use posix_fadvise(DONTNEED) to urge reading from disk.
-	if (fd < 0) {
-		fd = open(dest.c_str(), O_RDONLY);
-		if (fd >= 0) {
-			// If O_DIRECT failed, we try to clear the cache so we read from disk
-			// POSIX_FADV_DONTNEED in the fallback path: This attempts to clear the cache
-			// before reading, maximizing the chance of a physical disk read even without O_DIRECT.
-			posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
-			posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
-		}
+	if (fileSize >= syncThreshold) {
+		useDirect = true;
 	}
 
-	if (fd < 0)
-		return false;
+	int flags = O_RDONLY;
+	if (useDirect) flags |= O_DIRECT;
+
+	int fd = open(dest.c_str(), flags);
+
+	if (fd < 0) {
+		// Fallback if O_DIRECT failed (e.g. tmpfs or unsupported fs)
+		// Some filesystems/OSs don't support O_DIRECT
+		fd = open(dest.c_str(), O_RDONLY);
+	}
+	if (fd < 0)	return false;
+	
+	if (!useDirect) {
+		// Hint sequential access for buffered reads
+		// If O_DIRECT failed, we try to clear the cache so we read from disk
+		// POSIX_FADV_DONTNEED in the fallback path: This attempts to clear the cache
+		// before reading, maximizing the chance of a physical disk read even without O_DIRECT.
+		posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+		posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
+	}
 
 	XXH64_state_t *state = XXH64_createState();
 	XXH64_reset(state, 0);
 
-	// std::aligned_alloc vs std::vector: std::aligned_alloc is superior here for two reasons:
-	// Alignment: O_DIRECT (Direct I/O) strictly requires memory buffers to be aligned to
-	// the block size (usually 4096 bytes). std::vector does not guarantee this alignment.
-	// Initialization: std::vector zero-initializes memory upon creation.
-	// For an 8MB buffer, this is wasted CPU cycles. aligned_alloc gives you raw memory,
-	// which is faster since you are about to overwrite it anyway.
-
-	// Use aligned_alloc instead of std::vector for maximum performance
-	const size_t ALIGNMENT = 4096; // Standard page size
-
-	// Allocate memory
-	size_t allocSize = Config::BUFFER_SIZE;
-	if (allocSize % ALIGNMENT != 0)
-		allocSize = (allocSize + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
-	void *rawPtr = std::aligned_alloc(ALIGNMENT, allocSize);
-
-	if (!rawPtr)
-		return false;
-
-	// Use unique_ptr with a custom deleter so it calls free() automatically
-	std::unique_ptr<char, decltype(&std::free)> buffer(static_cast<char *>(rawPtr), std::free);
-
-	// std::vector<char> buffer(BUFFER_SIZE);
-	// ssize_t n;
-
-	// Start the timer for verification speed
-	auto startTime = std::chrono::steady_clock::now();
-	auto lastSampleTime = startTime;
-	qint64 lastBytesRead = 0;
-	qint64 fileSize = fs::file_size(dest);
 	qint64 totalRead = 0;
 
 	while (totalRead < fileSize) {
@@ -797,45 +842,44 @@ bool CopyWorker::verifyFile(const std::filesystem::path &src,
 
 			// Reset the sampling clock so the pause duration isn't
 			// counted as "active time" in the next speed calculation.
-			lastSampleTime = pauseEnd;
-			lastBytesRead = totalRead;
+			m_lastSampleTime = pauseEnd;
+			m_lastTotalBytesProcessed = m_totalBytesProcessed;
 		}
 
 		qint64 remaining = fileSize - totalRead;
-		size_t toRead = std::min((qint64)Config::BUFFER_SIZE, remaining);
+		size_t toRead = std::min((qint64)bufferSize, remaining);
 
-		// O_DIRECT handling: The count must be a multiple of 512/4096.
-		// If we are at the end and 'toRead' is not a multiple, we must
-		// temporarily drop O_DIRECT or use a padded buffer.
-		if (toRead % 4096 != 0) {
-			// Simplest fix: Re-open without O_DIRECT for the last chunk
-			// OR just use posix_fadvise for the tail.
-			fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_DIRECT);
+		// O_DIRECT handling: Read size must be aligned.
+		// If we are at the tail and it's not aligned, drop O_DIRECT.
+		if (useDirect && (toRead % ALIGNMENT != 0)) {
+			int currentFlags = fcntl(fd, F_GETFL);
+			fcntl(fd, F_SETFL, currentFlags & ~O_DIRECT);
+			useDirect = false; // Stays off for the remainder (which is just this last chunk)
 		}
 
-		ssize_t n = read(fd, buffer.get(), toRead);
-		if (n <= 0)
-			break;
+		ssize_t n = read(fd, buffer, toRead);
+		if (n <= 0)	break;
 
-		XXH64_update(state, buffer.get(), n);
+		XXH64_update(state, buffer, n);
 		totalRead += n;
 		m_totalBytesProcessed += n;
-
-		updateProgress(src, dest, totalRead, fileSize, lastBytesRead, lastSampleTime);
+		updateProgress(src, dest, totalRead, fileSize);
 	}
 
 	// Force 100% and reset speed graph after verification
 	int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
-	emit progressChanged(QString::fromStdString(src.string()),
+
+	emit progressChanged(
+		QString::fromStdString(src.string()),
 		QString::fromStdString(dest.string()),
-		100, totalPercent, 0.0, 0.0, 0);
+		100, totalPercent, 0, 0, 0
+	);
 
 	outDiskHash = XXH64_digest(state);
 	XXH64_freeState(state);
 	close(fd);
 
 	if (outDiskHash != expectedHash) {
-		// emit errorOccurred({ChecksumMismatch, QString::fromStdString(dest.string())});
 		return false;
 	}
 	return true;

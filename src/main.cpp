@@ -7,7 +7,6 @@
 #include <QTranslator>
 #include <QUrl>
 #include <QLockFile>
-
 #include <QEventLoop>
 #include <QTimer>
 #include <iostream>
@@ -16,6 +15,7 @@
 #include "LogHelper.h"
 #include "MainWindow.h"
 #include "Settings.h"
+#include "StartupHandler.h"
 
 using std::cout;
 using std::endl;
@@ -42,71 +42,24 @@ using std::endl;
 // Build: The .qm is automatically compiled and put into :/i18n/ or /translations
 // depending on the CMakeLists settings.
 
-// Enum to match existing CopyWorker modes
-enum class ClipboardAction {
-	Copy,
-	Move
-};
-
-ClipboardAction detectClipboardAction() {
-	const QClipboard *clipboard = QApplication::clipboard();
-	const QMimeData *mimeData = clipboard->mimeData();
-
-	if (!mimeData) {
-		LOG(LogLevel::DEBUG) << "Clipboard action fallback to Copy. No MIME data.";
-		return ClipboardAction::Copy; // Default fallback
-	}
-
-	// List of known formats for 'Cut' in the KDE/Qt world
-	QStringList cutFormats = {
-		"application/x-kde-cutselection",
-		"application/x-kde-cut-selection",
-		"x-kde-cut-selection",
-		"x-kde-cutselection"
-	};
-
-	for (const QString &format : cutFormats) {
-		if (mimeData->hasFormat(format)) {
-			QByteArray data = mimeData->data(format);
-
-			// Log for debugging (remove in production)
-			LOG(LogLevel::DEBUG) << "Found format:" << format << "Data:" << data;
-
-			// '1' indicates a Cut operation
-			if (data.contains('1')) {
-				return ClipboardAction::Move;
-			}
-		}
-	}
-
-	// GNOME (Nautilus) uses a different convention: a "x-special/gnome-copied-files" format
-	// where the first line of the data is "cut" or "copy"
-	if (mimeData->hasFormat("x-special/gnome-copied-files")) {
-		QByteArray data = mimeData->data("x-special/gnome-copied-files");
-		if (data.startsWith("cut")) {
-			return ClipboardAction::Move;
-		}
-	}
-
-	return ClipboardAction::Copy;
-}
 
 
 bool isXcbPluginAvailable() {
-	// 1. Get the path where Qt expects platform plugins
+	// Get the path where Qt expects platform plugins
 	// On Linux, this is usually /usr/lib/qt/plugins/platforms
 	QString pluginPath = QLibraryInfo::path(QLibraryInfo::PluginsPath) + "/platforms";
 
-	// 2. The filename for the X11/XCB plugin
+	// The filename for the X11/XCB plugin
 	QString xcbPlugin = pluginPath + "/libqxcb.so";
 
-	// 3. Check if the file exists and is readable
+	// Check if the file exists and is readable
 	return QFile::exists(xcbPlugin);
 }
 
 
 int main(int argc, char *argv[]) {
 	// Check if we are on a Wayland session
+	// Using XCB plugin to allow window positioning which is not possible on Wayland.
 	bool isWayland = (qgetenv("XDG_SESSION_TYPE") == "wayland");
 
 	if (isWayland) {
@@ -141,10 +94,12 @@ int main(int argc, char *argv[]) {
 
     // Try to lock the file. If it fails, another instance is running.
     if (!lockFile.tryLock(100)) { // Wait 100ms to be sure
-        QMessageBox::warning(nullptr, 
+        QMessageBox::warning(
+			nullptr, 
 			QCoreApplication::translate("Main","Already Running"), 
 			QString::fromStdString(APP_NAME) + 
-			QCoreApplication::translate("Main", " is already running. Please close the other instance first."));
+			QCoreApplication::translate("Main", " is already running. Please close the other instance first.")
+		);
         return 0; 
     }
 
@@ -186,146 +141,53 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	QString arg1 = QString(argv[1]);
-	LOG(LogLevel::INFO) << "arg1:" << arg1;
-
-	QString mode;
-	QString destDir;
-	OperationMode op;
-
-	// Improved Argument Parsing
-	if (argc > 1) {
-		QString arg1 = QString(argv[1]);
-		if (arg1 == "--settings") {
-			Settings *dlg = new Settings(nullptr);
-			dlg->setAttribute(Qt::WA_DeleteOnClose); // Clean up memory when closed
-			dlg->show();
-			return app.exec();
-		} else if (arg1 == "cp" || arg1 == "mv") {
-			mode = arg1;
-			if (argc > 2)
-				destDir = QString(argv[2]);
-		} else if (arg1 == "help" || arg1 == "--help") {
-			cout << "Usage: " << "Copy contents to clipboard" << endl;
-			cout << "       " << APP_NAME << " [cp|mv] [dest dir]" << endl;
-			cout << "       " << APP_NAME << " --settings" << endl;
-			cout << "       " << APP_NAME << " --paste-to [dest dir]" << endl;
-			return 0;
-		}
-
-		if (argc > 2 && arg1 == "--paste-to") {
-			destDir = argv[2];
-		}
-	} else {
-		cout << "No arguments provided." << endl;
-		return 1;
-	}
-
-
-	// 1. Create a dummy invisible window
+	// Create a dummy invisible window
 	// We use Qt::WindowTransparentForInput and make it tiny
-	QWidget dummy;
-	dummy.setWindowOpacity(0.01); // Effectively invisible
-	dummy.setFixedSize(1, 1);
-	dummy.show();
-	dummy.raise();
-	dummy.activateWindow();
+	// QWidget dummy;
+	// dummy.setWindowOpacity(0.01); // Effectively invisible
+	// dummy.setFixedSize(1, 1);
+	// dummy.show();
+	// dummy.raise();
+	// dummy.activateWindow();
 
-	// 2. Local event loop to wait for Wayland to "seat" the window
+	// Local event loop to wait for Wayland to "seat" the window
 	QEventLoop loop;
 	QTimer::singleShot(200, &loop, &QEventLoop::quit);
 	loop.exec();
 
+	// Parse arguments and clipboard
+	StartupOptions options = StartupHandler::parse(app.arguments());
 
-	// Get Clipboard Data
-	// URI Lists vs. Plain Text:
-	// Standard Copy: When you Ctrl+C a file, Dolphin populates the clipboard with text/uri-list.
-	// hasUrls() check looks specifically for this format.
-	// Copy Location: This action usually populates the clipboard as text/plain (raw string text). 
-	// Since a raw string is not technically a "URL list," mimeData->hasUrls() returns false.
-	std::vector<std::string> sourceFiles;
-	if (Config::DRY_RUN == false) {
-		const QClipboard *clipboard = QApplication::clipboard();
-		const QMimeData *mimeData = clipboard->mimeData();
+	// Display Settings
+	if (options.showSettings) {
+		Settings *dlg = new Settings(nullptr);
+		dlg->setAttribute(Qt::WA_DeleteOnClose); // Clean up memory when closed
+		dlg->show();
+		return app.exec();
+	}
 
-		LOG(LogLevel::DEBUG) << "Available Formats:" << mimeData->formats().join(", ").toStdString();
-		LOG(LogLevel::DEBUG) << "Clipboard Text:" << clipboard->text();
-		// Check for the standard URI list first
-		if (mimeData->hasFormat("text/uri-list")) {
-			// ... logic for hasUrls()
-			LOG(LogLevel::DEBUG) << "Has format text/uri-list";
-		}
+	// Display Help in the terminal
+	if (options.showHelp) {
+		cout << "Usage: " << "Copy contents to clipboard" << endl;
+		cout << "       " << APP_NAME << " [cp|mv] [dest dir]" << endl;
+		cout << "       " << APP_NAME << " --settings" << endl;
+		cout << "       " << APP_NAME << " --paste-to [dest dir]" << endl;
+		return 0;
+	}
 
-		if (mimeData->hasUrls()) {
-			QList<QUrl> urlList = mimeData->urls();
-			for (const QUrl &url : urlList) {
-
-				LOG(LogLevel::DEBUG) << "url:" << url;
-
-				if (url.isLocalFile()) {
-					sourceFiles.push_back(url.toLocalFile().toStdString());
-				}
-			}
-
-		} else if (mimeData->hasText()) {
-			// Fallback for 'Copy Location' (Plain Text)
-			QString rawText = mimeData->text();
-
-			// Split by newlines in case multiple locations were copied
-			QStringList lines = rawText.split(QRegularExpression("[\r\n]+"), Qt::SkipEmptyParts);
-
-			for (const QString &line : lines) {
-				QString trimmed = line.trimmed();
-
-				// Remove 'file://' prefix if Dolphin included it in the text
-				if (trimmed.startsWith("file://")) {
-					trimmed = QUrl(trimmed).toLocalFile();
-				}
-
-				if (QFile::exists(trimmed)) {
-					sourceFiles.push_back(trimmed.toStdString());
-				}
-			}
-
+	if (!options.valid) {
+		if (options.errorMessage == "No arguments provided.") {
+			cout << "No arguments provided." << endl;
 		} else {
-				LOG(LogLevel::DEBUG) << "No clipboard data found.";
-			}
-
-		if (sourceFiles.empty()) {
-			QMessageBox::warning(nullptr, "Error", 
-				QCoreApplication::translate("Main", "No files found in clipboard!"));
-			return 1;
+			QMessageBox::warning(nullptr, "Error", options.errorMessage);
 		}
-	}
-
-	if (destDir.isEmpty()) {
-		LOG(LogLevel::DEBUG) << "No destination directory provided.";
-		QMessageBox::warning(nullptr, "Error", 
-			QCoreApplication::translate("Main", "No destination directory provided!"));
 		return 1;
 	}
 
-	QDir dest(destDir);
-	if (!dest.exists()) {
-		LOG(LogLevel::DEBUG) << "Destination directory does not exist:" << destDir;
-		QMessageBox::warning(nullptr, "Error", 
-			QCoreApplication::translate("Main", "Destination directory does not exist!"));
-		return 1;
-	}
+	// Close dummy and show real window
+	// dummy.hide();
 
-	ClipboardAction action = detectClipboardAction();
-	op = (action == ClipboardAction::Move) ? OperationMode::Move : OperationMode::Copy;
-	QString actionString = (action == ClipboardAction::Move) ? "Move" : "Copy";
-	LOG(LogLevel::DEBUG) << "Action from clipboard:" << actionString;
-
-	if (arg1 == "cp")
-		op = OperationMode::Copy;
-	else if (arg1 == "mv")
-		op = OperationMode::Move;
-
-	// 4. If files exist, close dummy and show real window
-	dummy.hide();
-	MainWindow w(op, sourceFiles, destDir.toStdString());
+	MainWindow w(options.mode, options.sources, options.dest);
 	w.show();
 	w.raise(); // Move window to top of stack
 	w.activateWindow(); // Request keyboard/clipboard focus

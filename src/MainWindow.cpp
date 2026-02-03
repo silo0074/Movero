@@ -271,6 +271,7 @@ MainWindow::MainWindow(
 	m_smoothedSpeed(0.0),
 	m_totalFiles(0), 
 	m_filesRemaining(0), 
+	m_filesProcessed(0),
 	m_filePercent(0), 
 	m_totalProgress(0),
 	m_currentSpeed(0.0), 
@@ -340,6 +341,7 @@ MainWindow::MainWindow(
 	// Ensure the TabWidget doesn't have a massive minimum size that breaks the layout
 	ui->tabWidget->setMinimumHeight(0);
 	ui->tabWidget->setCurrentIndex(0);
+	ui->treeWidget->header()->setSectionResizeMode(0, QHeaderView::Interactive);
 	this->adjustSize(); // after loading history into 'show more' window
 	this->resize(Config::WINDOW_WIDTH, this->height());
 
@@ -441,9 +443,12 @@ void MainWindow::onUpdateProgress(QString src, QString dest, int percent,
 	m_currentDest = dest;
 	m_filePercent = percent;
 	m_totalProgress = totalPercent;
-	m_currentSpeed = curSpeed;
-	m_avgSpeed = avgSpeed;
-	m_secondsLeft = secondsLeft;
+
+	if (curSpeed > 0.00001 || (percent == 100 && totalPercent == 100)) {
+		m_currentSpeed = curSpeed;
+		m_avgSpeed = avgSpeed;
+		m_secondsLeft = secondsLeft;
+	}
 
 	if (curSpeed > 0) {
 		// smoothing factor: 0.15 (lower = smoother/slower, higher = jumpier/faster)
@@ -451,11 +456,6 @@ void MainWindow::onUpdateProgress(QString src, QString dest, int percent,
 	}
 
 	m_progress_updated = true;
-
-	// if (percent == 100) {
-	LOG(LogLevel::WARNING) << "onUpdateProgress:" << src;
-	// 	// logHistory(src, "");
-	// }
 }
 
 void MainWindow::onStatusChanged(CopyWorker::Status status) {
@@ -482,17 +482,19 @@ void MainWindow::onStatusChanged(CopyWorker::Status status) {
 
 	m_status_code = status;
 	ui->labelStatus->setText(m_status_string);
-	LOG(LogLevel::INFO) << "Status Changed: " << m_status_string;
+	// LOG(LogLevel::INFO) << "Status Changed: " << m_status_string;
+	m_progress_updated = true;
 }
 
 void MainWindow::onTotalProgress(int fileCount, int totalFiles) {
 	m_totalFiles = totalFiles;
 	m_filesRemaining = totalFiles - fileCount;
-	LOG(LogLevel::DEBUG) << "onTotalProgress fileCount:" << fileCount;
-	LOG(LogLevel::DEBUG) << "onTotalProgress m_filesRemaining:" << m_filesRemaining;
+	m_filesProcessed = fileCount;
+
 	if (fileCount == 0) {
 		m_graph->m_history.resize(Config::SPEED_GRAPH_HISTORY_SIZE, 0.0);
 	}
+	m_progress_updated = true;
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -606,6 +608,7 @@ void MainWindow::onError(CopyWorker::FileError err) {
 		ui->tabWidget->setCurrentWidget(ui->tab_2);
 		onToggleDetails();
 	}
+	m_progress_updated = true;
 }
 
 void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedName) {
@@ -771,6 +774,8 @@ void MainWindow::onToggleDetails() {
 
 void MainWindow::onFinished() {
 	LOG(LogLevel::INFO) << "Done.";
+	m_secondsLeft = 0;
+	m_progress_updated = true;
 	updateProgressUi();
 	m_graphTimer->stop(); // Stop the graph once finished
 	updateTaskbarProgress(0); // Clear progress bar
@@ -833,8 +838,8 @@ void MainWindow::updateProgressUi() {
 	// Decay speed if no data point received
 	m_smoothedSpeed *= 0.9;
 
-	// if(!m_progress_updated) return;
-	// m_progress_updated = false;
+	if(!m_progress_updated) return;
+	m_progress_updated = false;
 
 	if (m_worker) {
 		totalBytes = m_worker->m_totalSizeToCopy;
@@ -866,31 +871,32 @@ void MainWindow::updateProgressUi() {
 
 	// Status
 	if (m_status_code == CopyWorker::Status::Copying){
-		ui->labelStatus->setText(tr("Copying %1 of %2").arg(m_filesRemaining).arg(m_totalFiles));
+		ui->labelStatus->setText(tr("Copying %1 of %2").arg(m_filesProcessed).arg(m_totalFiles));
 	} else {
 		ui->labelStatus->setText(m_status_string);
 	}
 
-	LOG(LogLevel::DEBUG) << "updateProgressUi status:" << m_status_string;
-
 	// Total progress
-	ui->labelProgress->setText(tr("%1% complete").arg(m_totalProgress));
+	ui->labelProgress->setText(tr("%1% complete (%2 of %3)").arg(m_totalProgress)
+								.arg(m_filesProcessed).arg(m_totalFiles));
 
 	QString etaStr;
 	if (m_secondsLeft < 0) {
 		etaStr = tr("Calculating...");
-	} else if (m_secondsLeft < 60) {
-		etaStr = QString("%1s").arg(m_secondsLeft);
 	} else {
-		long m = m_secondsLeft / 60;
+		long h = m_secondsLeft / 3600;
+		long m = (m_secondsLeft % 3600) / 60;
 		long s = m_secondsLeft % 60;
-		etaStr = QString("%1m %2s").arg(m).arg(s);
+		etaStr = QString("%1:%2:%3")
+			.arg(h, 2, 10, QChar('0'))
+			.arg(m, 2, 10, QChar('0'))
+			.arg(s, 2, 10, QChar('0'));
 	}
 
 	// Remaining: 00:00:00 (MB/s avg)
 	ui->labelETA->setText(tr("Remaining: %1 (%2 MiB/s)")
 		.arg(etaStr)
-		.arg(m_avgSpeed, 0, 'f', 0)
+		.arg(m_avgSpeed, 0, 'f', 2)
 	);
 
 	// From and To
@@ -992,6 +998,5 @@ void MainWindow::logHistory(
 }
 
 void MainWindow::onFileCompleted(QString path, QString srcHash, QString destHash) {
-	LOG(LogLevel::INFO) << "onFileCompleted:" << path;
 	logHistory(path, "", srcHash, destHash);
 }

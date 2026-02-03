@@ -118,6 +118,7 @@ protected:
 	int m_filePercent;
 	int m_totalFiles;
 	int m_filesRemaining;
+	int m_filesProcessed;
 	bool m_isPaused;
 	bool m_testMode = false;
 	bool m_progress_updated = false;
