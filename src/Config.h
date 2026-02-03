@@ -31,6 +31,7 @@ namespace Config {
 		inline constexpr int SPEED_GRAPH_HISTORY_SIZE_USER = 200;
 		inline constexpr double SPEED_GRAPH_MAX_SPEED = 10.0;
 		inline constexpr int SYNC_THRESHOLD_MB = 4;
+		inline constexpr bool SELECT_FILES_AFTER_COPY = true;
 	} // namespace Defaults
 
 	// ----------- App details ------------------
@@ -105,6 +106,9 @@ namespace Config {
 
 	// Files larger than this (in MB) will be forced to disk (fdatasync)
 	inline int SYNC_THRESHOLD_MB = Defaults::SYNC_THRESHOLD_MB;
+
+	// Select files in file manager after copy
+	inline bool SELECT_FILES_AFTER_COPY = Defaults::SELECT_FILES_AFTER_COPY;
 
 	// ------------------- CopyWorker ---------------------------
 	// 8MB is widely considered the peak performance point for high-speed I/O

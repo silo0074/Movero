@@ -104,6 +104,13 @@
           </widget>
          </item>
          <item>
+          <widget class="QCheckBox" name="checkSelectFiles">
+           <property name="text">
+            <string>Select files in file manager after copy</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QCheckBox" name="checkCloseOnFinish">
            <property name="text">
             <string>Close window when finished</string>

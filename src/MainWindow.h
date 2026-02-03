@@ -70,7 +70,7 @@ private slots:
 	void onError(CopyWorker::FileError err);
 	void onFinished();
 	void onConflictNeeded(QString src, QString dest, QString suggestedName);
-	void onFileCompleted(QString path, QString srcHash, QString destHash);
+	void onFileCompleted(QString path, QString srcHash, QString destHash, bool isTopLevel);
 
 protected:
 	void closeEvent(QCloseEvent *event) override;
@@ -78,6 +78,7 @@ protected:
 	// void moveEvent(QMoveEvent *event) override;
 
 	private : void logHistory(const QString &path, const QString &error = "", const QString &srcHash = "", const QString &destHash = "");
+	void highlightFile(const QStringList &paths);
 	void updateTaskbarProgress(int percent);
 	void onToggleDetails();
 	void updateProgressUi();
@@ -91,6 +92,7 @@ protected:
 	bool m_isOffsetInitialized = false;
 	Ui::MainWindow *ui;
 	DetailsWindow *m_detailsWindow = nullptr;
+	QStringList m_topLevelItems;
 	QList<HistoryEntry> m_jobHistory;
 	QSet<QString> m_loggedFiles;
 	CopyWorker *m_worker;

@@ -16,6 +16,7 @@ namespace Config {
 		SPEED_GRAPH_HISTORY_SIZE = SPEED_GRAPH_HISTORY_SIZE_USER;
 		SPEED_GRAPH_MAX_SPEED = s.value("graphMaxSpeed", Defaults::SPEED_GRAPH_MAX_SPEED).toDouble();
 		SYNC_THRESHOLD_MB = s.value("syncThreshold", Defaults::SYNC_THRESHOLD_MB).toInt();
+		SELECT_FILES_AFTER_COPY = s.value("selectFilesAfterCopy", Defaults::SELECT_FILES_AFTER_COPY).toBool();
 		CLOSE_ON_FINISH = s.value("closeOnFinish", Defaults::CLOSE_ON_FINISH).toBool();
 		UI_STYLE = s.value("uiStyle", "").toString();
 		LANGUAGE = s.value("language", Defaults::LANGUAGE).toString();
@@ -33,6 +34,7 @@ namespace Config {
 		s.setValue("graphHistorySize", SPEED_GRAPH_HISTORY_SIZE_USER);
 		s.setValue("graphMaxSpeed", SPEED_GRAPH_MAX_SPEED);
 		s.setValue("syncThreshold", SYNC_THRESHOLD_MB);
+		s.setValue("selectFilesAfterCopy", SELECT_FILES_AFTER_COPY);
 		s.setValue("closeOnFinish", CLOSE_ON_FINISH);
 		s.setValue("uiStyle", UI_STYLE);
 		s.setValue("language", LANGUAGE);
