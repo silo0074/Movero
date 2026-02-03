@@ -15,6 +15,7 @@
 
 namespace fs = std::filesystem;
 
+// Constructor: Initializes the worker with source files, destination directory, and operation mode.
 CopyWorker::CopyWorker(const std::vector<std::string> &sources, const std::string &destDir, Mode mode, QObject *parent)
 	: QThread(parent),
 	  m_sources(sources),
@@ -25,16 +26,19 @@ CopyWorker::CopyWorker(const std::vector<std::string> &sources, const std::strin
 	  m_applyAll(false)
 {}
 
+// Pauses the copy operation.
 void CopyWorker::pause() {
 	m_paused = true;
 }
 
+// Resumes the copy operation if it was paused.
 void CopyWorker::resume() {
 	QMutexLocker locker(&m_sync);
 	m_paused = false;
 	m_pauseCond.wakeAll();
 }
 
+// Cancels the current operation and wakes up any waiting threads.
 void CopyWorker::cancel() {
 	m_cancelled = true;
 	resume(); // Break wait if paused
@@ -43,6 +47,7 @@ void CopyWorker::cancel() {
 	m_inputWait.wakeAll(); // Break wait if waiting for user input
 }
 
+// Receives the user's decision on how to handle a file conflict.
 void CopyWorker::resolveConflict(ConflictAction action, bool applyToAll, QString newName) {
 	QMutexLocker locker(&m_inputMutex);
 	m_userAction = action;
@@ -52,6 +57,7 @@ void CopyWorker::resolveConflict(ConflictAction action, bool applyToAll, QString
 	m_inputWait.wakeAll();
 }
 
+// Generates a unique filename by appending a number (e.g., "file (1).txt") to avoid overwriting.
 static fs::path generateAutoRename(const fs::path &path) {
 	LOG(LogLevel::DEBUG) << "Input:" << path.string();
 	fs::path folder = path.parent_path();
@@ -86,6 +92,7 @@ static fs::path generateAutoRename(const fs::path &path) {
 	}
 }
 
+// Calculates current speed, average speed, and ETA, then emits progress signals to the UI.
 void CopyWorker::updateProgress(const fs::path &src, const fs::path &dest, qint64 fileRead, qint64 fileSize)
 {
 	auto now = std::chrono::steady_clock::now();
@@ -122,6 +129,7 @@ void CopyWorker::updateProgress(const fs::path &src, const fs::path &dest, qint6
 	m_lastTotalBytesProcessed = m_totalBytesProcessed;
 }
 
+// Identifies the filesystem type (NTFS, FAT32, EXT, etc.) of the given path.
 static CopyWorker::FileSystemType getFileSystemAt(const std::string &path)
 {
 	QStorageInfo storage(QString::fromStdString(path));
@@ -139,6 +147,7 @@ static CopyWorker::FileSystemType getFileSystemAt(const std::string &path)
 	return CopyWorker::FileSystemType::Generic;
 }
 
+// Removes or replaces characters that are invalid for the target filesystem.
 static std::string sanitizeFilename(const std::string &name, CopyWorker::FileSystemType fsType)
 {
 	if (name.empty() || name == "." || name == "..")
@@ -217,6 +226,7 @@ static std::string sanitizeFilename(const std::string &name, CopyWorker::FileSys
 	return result;
 }
 
+// Applies filename sanitization to an entire relative path structure.
 static fs::path getSanitizedRelativePath(const fs::path &relPath, CopyWorker::FileSystemType fsType) {
 	if (!Config::SANITIZE_FILENAMES)
 		return relPath;
@@ -228,6 +238,7 @@ static fs::path getSanitizedRelativePath(const fs::path &relPath, CopyWorker::Fi
 	return sanitized;
 }
 
+// Main thread loop: Scans sources, checks disk space, creates directories, and iterates through file tasks.
 void CopyWorker::run() {
 	std::vector<CopyTask> tasks;
 	std::vector<fs::path> sourceDirs; // To clean up empty folders in Move mode
@@ -574,6 +585,7 @@ void CopyWorker::run() {
 }
 
 
+// Handles the low-level copying of a single file: reading, writing, calculating hash, and syncing to disk.
 bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffer, size_t bufferSize, bool isTopLevel, bool isLastFile, FileSystemType fsType) {
 	int fd_in = -1;
 
@@ -798,6 +810,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 }
 
 
+// Verifies the integrity of the copied file by reading it back from disk and comparing checksums.
 bool CopyWorker::verifyFile(
 	const std::filesystem::path &src,
 	const std::filesystem::path &dest,

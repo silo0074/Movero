@@ -26,18 +26,28 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
 
-// --- SpeedGraph Implementation ---
+/*----------------------------------------------------------------
+  SpeedGraph Implementation
+  This class provides the custom-drawn speed graph widget.
+------------------------------------------------------------------*/
 // Initializes members BEFORE constructor body executes
 // More efficient than assignment inside constructor body
+/*----------------------------------------------------------------
+  Constructor for the SpeedGraph widget.
+  Initializes the graph's minimum height and history buffer.
+------------------------------------------------------------------*/
 SpeedGraph::SpeedGraph(QWidget *parent)
 	: QWidget(parent), // Base class initialization
 	  m_maxSpeed(Config::SPEED_GRAPH_MAX_SPEED) // Member initialization
 {
-	// Constructor body
 	setMinimumHeight(Config::SPEED_GRAPH_MIN_HEIGHT);
 	m_history.resize(Config::SPEED_GRAPH_HISTORY_SIZE, 0.0);
 }
 
+/*----------------------------------------------------------------
+  Adds a new speed data point to the graph's history.
+  Manages history size and dynamic scaling of the Y-axis.
+------------------------------------------------------------------*/
 void SpeedGraph::addSpeedPoint(double mbps) {
 	// If we hit the limit, remove the oldest (first) point
 	if (m_history.size() >= Config::SPEED_GRAPH_HISTORY_SIZE) {
@@ -66,6 +76,10 @@ void SpeedGraph::addSpeedPoint(double mbps) {
 	update(); // Trigger paintEvent
 }
 
+/*----------------------------------------------------------------
+  Overrides the default paint event to custom-draw the speed graph.
+  This includes the grid, labels, data line, and fill gradient.
+------------------------------------------------------------------*/
 void SpeedGraph::paintEvent(QPaintEvent *) {
 	QPainter p(this);
 	p.setRenderHint(QPainter::Antialiasing);
@@ -252,7 +266,10 @@ void SpeedGraph::paintEvent(QPaintEvent *) {
 	}
 }
 
-// Helper to format labels cleanly
+/*----------------------------------------------------------------
+  Helper function to format a speed value (in MB/s) into a
+  human-readable string (e.g., "1.23 GiB/s", "45.6 MiB/s").
+------------------------------------------------------------------*/
 QString SpeedGraph::formatSpeed(double mbps) {
 	if (mbps >= 1024)
 		return QString::number(mbps / 1024.0, 'f', 1) + " GiB/s";
@@ -261,7 +278,16 @@ QString SpeedGraph::formatSpeed(double mbps) {
 	return QString::number(mbps * 1024.0, 'f', 0) + " KiB/s";
 }
 
-// --- MainWindow Implementation ---
+/*----------------------------------------------------------------
+  MainWindow Implementation
+  This class manages the main application window, orchestrates the
+  UI, and interacts with the CopyWorker background thread.
+------------------------------------------------------------------*/
+/*----------------------------------------------------------------
+  Constructor for the main application window.
+  Initializes UI elements, sets up the copy worker, and connects
+  all necessary signals and slots.
+------------------------------------------------------------------*/
 MainWindow::MainWindow(
 	OperationMode mode,
 	const std::vector<std::string> &sources,
@@ -419,6 +445,11 @@ MainWindow::MainWindow(
 	}
 }
 
+/*----------------------------------------------------------------
+  Destructor for the main application window.
+  Ensures the background worker thread is properly cancelled and
+  waited for before cleaning up UI resources.
+------------------------------------------------------------------*/
 MainWindow::~MainWindow() {
 	if (m_graphTimer) {
 		m_graphTimer->stop();
@@ -436,9 +467,11 @@ MainWindow::~MainWindow() {
 	delete ui;
 }
 
-/*----------------------------------------------------------------------
-	Updated by copy worker faster than the timer updates the GUI
-------------------------------------------------------------------------*/
+/*----------------------------------------------------------------
+  Slot that receives real-time progress updates from the worker thread.
+  This function is called very frequently and stores the latest data
+  in member variables to be processed by the slower UI timer.
+------------------------------------------------------------------*/
 void MainWindow::onUpdateProgress(QString src, QString dest, int percent,
 	int totalPercent, double curSpeed, double avgSpeed,	long secondsLeft) 
 {
@@ -461,6 +494,10 @@ void MainWindow::onUpdateProgress(QString src, QString dest, int percent,
 	m_progress_updated = true;
 }
 
+/*----------------------------------------------------------------
+  Slot that receives status changes from the worker thread.
+  Updates the main status label with human-readable text.
+------------------------------------------------------------------*/
 void MainWindow::onStatusChanged(CopyWorker::Status status) {
 	switch (status) {
 		case CopyWorker::DryRunGenerating:
@@ -489,6 +526,9 @@ void MainWindow::onStatusChanged(CopyWorker::Status status) {
 	m_progress_updated = true;
 }
 
+/*----------------------------------------------------------------
+  Slot that receives updates on the total number of files processed.
+------------------------------------------------------------------*/
 void MainWindow::onTotalProgress(int fileCount, int totalFiles) {
 	m_totalFiles = totalFiles;
 	m_filesRemaining = totalFiles - fileCount;
@@ -500,6 +540,11 @@ void MainWindow::onTotalProgress(int fileCount, int totalFiles) {
 	m_progress_updated = true;
 }
 
+/*----------------------------------------------------------------
+  Overrides the window's close event.
+  If a transfer is in progress, it prompts the user for confirmation
+  before cancelling the worker and closing the application.
+------------------------------------------------------------------*/
 void MainWindow::closeEvent(QCloseEvent *event) {
 	LOG(LogLevel::INFO) << "Close event received.";
 
@@ -531,6 +576,10 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 	event->accept();
 }
 
+/*----------------------------------------------------------------
+  Toggles the paused/resumed state of the copy operation.
+  It signals the worker thread and updates the UI accordingly.
+------------------------------------------------------------------*/
 void MainWindow::onTogglePause() {
 	if (m_isPaused) {
 		if (m_worker)
@@ -555,6 +604,10 @@ void MainWindow::onTogglePause() {
 	m_isPaused = !m_isPaused;
 }
 
+/*----------------------------------------------------------------
+  Slot to handle errors reported by the worker thread.
+  It formats an error message and updates the UI and log.
+------------------------------------------------------------------*/
 void MainWindow::onError(CopyWorker::FileError err) {
 	QString msg;
 	switch (err.code) {
@@ -614,6 +667,11 @@ void MainWindow::onError(CopyWorker::FileError err) {
 	m_progress_updated = true;
 }
 
+/*----------------------------------------------------------------
+  Slot that is triggered when a file conflict is detected.
+  It displays a dialog to the user to choose an action (Replace,
+  Skip, Rename, etc.) and sends the result back to the worker.
+------------------------------------------------------------------*/
 void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedName) {
 	// PAUSE the graph timer so it doesn't call addSpeedPoint while we are blocked
 	m_graphTimer->stop();
@@ -746,6 +804,10 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
 	// End of function: 'dialog' destructor runs automatically here.
 }
 
+/*----------------------------------------------------------------
+  Shows or hides the bottom panel containing the details tabs.
+  Manages window resizing to expand or collapse the view.
+------------------------------------------------------------------*/
 void MainWindow::onToggleDetails() {
 	bool isVisible = false;
 
@@ -775,6 +837,11 @@ void MainWindow::onToggleDetails() {
 	ui->btnShowBottomPanel->setText(isVisible ? "▲" : "▼");
 }
 
+/*----------------------------------------------------------------
+  Slot that is called when the worker thread has completed all tasks.
+  It finalizes the UI, saves the job history, and handles the
+  auto-close feature.
+------------------------------------------------------------------*/
 void MainWindow::onFinished() {
 	LOG(LogLevel::INFO) << "Done.";
 	m_secondsLeft = 0;
@@ -807,6 +874,10 @@ void MainWindow::onFinished() {
 	}
 }
 
+/*----------------------------------------------------------------
+  Updates the progress bar on the application's taskbar/dock icon
+  using the D-Bus protocol for desktop integration.
+------------------------------------------------------------------*/
 void MainWindow::updateTaskbarProgress(int percent) {
 	// Clamp percentage
 	if (percent < 0)
@@ -831,6 +902,11 @@ void MainWindow::updateTaskbarProgress(int percent) {
 	QDBusConnection::sessionBus().send(message);
 }
 
+/*----------------------------------------------------------------
+  The main UI update function, driven by a QTimer.
+  It takes the latest data from member variables and updates all
+  labels, progress bars, and the speed graph.
+------------------------------------------------------------------*/
 void MainWindow::updateProgressUi() {
 	uint64_t totalBytes = 0;
 	uint64_t completedBytes = 0;
@@ -951,12 +1027,22 @@ void MainWindow::updateProgressUi() {
 }
 
 
+/*----------------------------------------------------------------
+  Overrides the resize event to handle layout changes. It is
+  currently used to re-trigger text elision logic when the
+  window size changes.
+------------------------------------------------------------------*/
 void MainWindow::resizeEvent(QResizeEvent *event) {
 	QWidget::resizeEvent(event);
-	// updateProgressUi(); // Re-trigger elision with new widths
+	updateProgressUi(); // Re-trigger elision with new widths
 }
 
 
+/*----------------------------------------------------------------
+  Generates simulated data for the UI preview mode.
+  Creates a sine wave pattern for the speed graph to demonstrate
+  its appearance and behavior without a real file transfer.
+------------------------------------------------------------------*/
 void MainWindow::generateTestData() {
 	static double t = 0;
 	t += 0.1;
@@ -973,6 +1059,11 @@ void MainWindow::generateTestData() {
 	updateProgressUi();
 }
 
+/*----------------------------------------------------------------
+  Adds a file entry to the current job's history log.
+  This data is held in memory until the job is finished, at which
+  point it's saved to the details/history view.
+------------------------------------------------------------------*/
 void MainWindow::logHistory(
 	const QString &path, const QString &error, const QString &srcHash, const QString &destHash) {
 	if (!Config::LOG_HISTORY_ENABLED)
@@ -1000,6 +1091,11 @@ void MainWindow::logHistory(
 	m_loggedFiles.insert(path);
 }
 
+/*----------------------------------------------------------------
+  Slot that is called each time a single file is successfully
+  copied and verified. It logs the file to history and triggers
+  the file manager highlight if enabled.
+------------------------------------------------------------------*/
 void MainWindow::onFileCompleted(QString path, QString srcHash, QString destHash, bool isTopLevel) {
 	logHistory(path, "", srcHash, destHash);
 	
@@ -1009,6 +1105,11 @@ void MainWindow::onFileCompleted(QString path, QString srcHash, QString destHash
 	}
 }
 
+/*----------------------------------------------------------------
+  Uses the D-Bus `org.freedesktop.FileManager1` interface to
+  request that the default file manager show and select
+  (highlight) the specified list of files.
+------------------------------------------------------------------*/
 void MainWindow::highlightFile(const QStringList &paths) {
 	if (paths.isEmpty()) return;
 
