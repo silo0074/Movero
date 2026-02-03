@@ -717,7 +717,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 	if (shouldSync && useSyncFileRange) {
 		// Start the write-out (Non-blocking)
 		sync_file_range(fd_out, 0, 0, SYNC_FILE_RANGE_WRITE);
-		LOG(LogLevel::DEBUG) << "sync_file_range";
+		LOG(LogLevel::DEBUG) << "---------------------------sync_file_range";
 	}
 
 	// If we are here, the copy phase finished successfully.
