@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>735</width>
-    <height>413</height>
+    <height>400</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -37,6 +37,11 @@
        <string>About</string>
       </property>
      </item>
+     <item>
+      <property name="text">
+       <string>Log</string>
+      </property>
+     </item>
     </widget>
    </item>
    <item>
@@ -44,7 +49,7 @@
      <item>
       <widget class="QStackedWidget" name="stackedWidget">
        <property name="currentIndex">
-        <number>1</number>
+        <number>0</number>
        </property>
        <widget class="QWidget" name="page_1">
         <layout class="QVBoxLayout" name="verticalLayout_Page1">
@@ -222,7 +227,7 @@
            <item>
             <widget class="QSpinBox" name="spinSyncThreshold">
              <property name="toolTip">
-              <string>Files larger than this will be forced to disk to ensure physical integrity. Set it to 0 to always check.</string>
+              <string>Files larger than this will be forced to disk to ensure physical integrity.</string>
              </property>
              <property name="maximum">
               <number>10240</number>
@@ -390,6 +395,60 @@
             </size>
            </property>
           </spacer>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="page_4">
+        <layout class="QVBoxLayout" name="verticalLayout_Page4">
+         <item>
+          <widget class="QPlainTextEdit" name="plainTextLog">
+           <property name="font">
+            <font>
+             <family>monospace</family>
+            </font>
+           </property>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_LogButtons">
+           <item>
+            <spacer name="horizontalSpacer_Log">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnRefreshLog">
+             <property name="text">
+              <string>Refresh</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnClearLog">
+             <property name="text">
+              <string>Clear Log</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnOpenLogLocation">
+             <property name="text">
+              <string>Open Location</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
         </layout>
        </widget>

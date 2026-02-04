@@ -37,6 +37,10 @@ public:
 private slots:
 	void onStyleChanged(const QString &name);
 	void onTestModeToggled(bool checked);
+	void onMenuPageChanged(int index);
+	void loadLogFile();
+	void openLogLocation();
+	void clearLogFile();
 
 private:
 	Ui::Settings *ui;

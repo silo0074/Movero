@@ -1,0 +1,20 @@
+[Desktop Entry]
+Categories=Utility;FileTools;Qt;
+Comment[en_US]=Configure Movero file copier settings
+Comment=Configure Movero file copier settings
+Exec=/run/media/me/D_TOSHIBA_S300/Projects/Movero/build/debug/Movero --settings
+GenericName[en_US]=Movero
+GenericName=Movero
+Icon=/run/media/me/D_TOSHIBA_S300/Projects/Movero/icons/Movero.png
+Keywords=copy;move;settings;configuration;
+MimeType=
+Name[en_US]=Movero Settings
+Name=Movero Settings
+Path=
+StartupNotify=true
+Terminal=false
+TerminalOptions=
+Type=Application
+Version=1.0
+X-KDE-SubstituteUID=false
+X-KDE-Username=

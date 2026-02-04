@@ -1,13 +1,8 @@
 #ifndef DEBUGHELPER_H
 #define DEBUGHELPER_H
 
-#include <QDebug>
+#include <QFile>
 #include <QString>
-
-// If CMake didn't define it, default to false
-#ifndef DEBUG_ENABLED
-    #define DEBUG_ENABLED 0
-#endif
 
 // Define log levels
 enum class LogLevel {
@@ -17,56 +12,25 @@ enum class LogLevel {
     ERROR
 };
 
-#if DEBUG_ENABLED == 1
+namespace LogManager {
+void init();
+QString getLogFilePath();
+void clear();
+}
 
-    // This helper class handles the prefixing and auto-newline at the end of the line
-    class LogHelper {
-    public:
-        LogHelper(LogLevel level, const char* file, int line) 
-            : m_stream(qDebug().noquote()) {
-            QString label;
-            switch (level) {
-                case LogLevel::INFO:    label = "[INFO]"; break;
-                case LogLevel::DEBUG:   label = "[DEBUG]"; break;
-                case LogLevel::WARNING: label = "[WARNING]"; break;
-                case LogLevel::ERROR:   label = "[ERROR]"; break;
-            }
-            // Format the header: [LEVEL] (file:line)
-            m_stream << label << "(" << file << ":" << line << ")";
-        }
-
-        // Return the internal QDebug stream to allow chaining with <<
-        QDebug& stream() { return m_stream; }
-
-    private:
-        QDebug m_stream;
-    };
-
-
-    // Use the PROJECT_ROOT defined in CMakeLists.txt
-    // If __FILE__ starts with PROJECT_ROOT, skip that many characters.
-    // strncmp: This compares the beginning of the strings. 
-    // If __FILE__ is /home/me/Movero/src/main.cpp and PROJECT_ROOT is 
-    // /home/me/Movero/, the comparison is true, and it adds the length 
-    // of the root to the pointer, leaving you with src/main.cpp
-    // Ensure PROJECT_ROOT is handled as a string_view or pointer safely
-    #define __FILENAME__ (strncmp(__FILE__, PROJECT_ROOT, strlen(PROJECT_ROOT)) == 0 ? \
-                     &__FILE__[strlen(PROJECT_ROOT)] : __FILE__)
-
-    #define LOG(level) LogHelper(level, __FILENAME__, __LINE__).stream()
-
-#else
-
-    // When disabled, LOG(level) evaluates to a "No-Op" (No Operation)
-    // QNoDebug is a built-in Qt class that eats all stream inputs and does nothing
-    #define LOG(level) QT_NO_QDEBUG_MACRO()
-
-#endif
-
+// The LOG macro now maps to the standard Qt logging functions.
+// The custom message handler (in LogHelper.cpp) will format the output.
+#undef LOG
+#define LOG(level)                                                                     \
+	((level == LogLevel::DEBUG)   ? qDebug().noquote() :                                \
+	(level == LogLevel::INFO)    ? qInfo().noquote() :                                 \
+	(level == LogLevel::WARNING) ? qWarning().noquote() :                              \
+	(level == LogLevel::ERROR)   ? qCritical().noquote() :                             \
+								   qDebug().noquote())
 
 /*
 Usage example:
-#include "DebugHelper.h"
+#include "LogHelper.h"
 void someFunction(const QUrl& url, const QStringList& files) {
     int count = 5;
     

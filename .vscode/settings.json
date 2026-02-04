@@ -47,6 +47,13 @@
         "jsonc",
         "cpp"
     ],
+
+	"cSpell.ignorePaths": [
+		"**/*settings.json",
+        "**/*.desktop",          // any file with the .desktop extension
+        "**/CMakeLists.txt"      // the CMakeLists file at any folder depth
+    ],
+
     "cSpell.words": [
         "Dont"
     ]

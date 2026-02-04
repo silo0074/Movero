@@ -38,6 +38,7 @@ set(SOURCES
     src/DetailsWindow.cpp
     src/MainWindow.ui
     src/Settings.ui
+	src/LogHelper.cpp
 	resources.qrc
 )
 
@@ -48,6 +49,7 @@ set(HEADERS
     src/CopyWorker.h
     src/StartupHandler.h
     src/DetailsWindow.h
+	src/LogHelper.h
 )
 
 set(TS_FILES 

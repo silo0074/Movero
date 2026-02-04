@@ -77,6 +77,9 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	// Initialize the logging system
+	LogManager::init();
+
 	QApplication app(argc, argv);
 
 	LOG(LogLevel::INFO) << APP_NAME << "started.";
