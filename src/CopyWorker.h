@@ -123,6 +123,6 @@ private:
 	const size_t BUFFER_SIZE = Config::BUFFER_SIZE;
 
 	bool copyFile(const std::filesystem::path &src, const std::filesystem::path &dest, char *buffer, size_t bufferSize, bool isTopLevel, bool isLastFile, FileSystemType fsType);
-	bool verifyFile(const std::filesystem::path &src, const std::filesystem::path &dest, int fd_dest, uint64_t expectedHash, uint64_t &diskHash, char *buffer, size_t bufferSize);
+	bool verifyFile(const std::filesystem::path &src, const std::filesystem::path &dest, int fd_dest, uint64_t expectedHash, uint64_t &diskHash, char *buffer, size_t bufferSize, bool isLastFile);
 	void updateProgress(const std::filesystem::path &src, const std::filesystem::path &dest, qint64 totalRead, qint64 fileSize);
 };

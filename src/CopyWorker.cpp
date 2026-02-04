@@ -238,7 +238,9 @@ static fs::path getSanitizedRelativePath(const fs::path &relPath, CopyWorker::Fi
 	return sanitized;
 }
 
-// Main thread loop: Scans sources, checks disk space, creates directories, and iterates through file tasks.
+// Main thread loop: Scans sources, checks disk space,
+// creates directories, and iterates through file tasks.
+// "Copy -> Sync -> Verify" flow per-file
 void CopyWorker::run() {
 	std::vector<CopyTask> tasks;
 	std::vector<fs::path> sourceDirs; // To clean up empty folders in Move mode
@@ -394,7 +396,7 @@ void CopyWorker::run() {
 			processed++;
 			// Throttle progress updates for directories
 			auto now = std::chrono::steady_clock::now();
-			if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
+			if (processed == totalFiles || std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
 				emit totalProgress(processed, totalFiles);
 				lastProgressTime = now;
 			}
@@ -418,7 +420,6 @@ void CopyWorker::run() {
 		// Existence Check & Conflict Resolution
 		if (fs::exists(task.dest) || fs::is_symlink(task.dest)) {
 			ConflictAction action = m_savedAction;
-			LOG(LogLevel::INFO) << "File already exists:" << task.dest.string();
 
 			if (!m_applyAll) {
 				fs::path suggested = generateAutoRename(task.dest);
@@ -459,7 +460,7 @@ void CopyWorker::run() {
 
 				// Throttle progress
 				auto now = std::chrono::steady_clock::now();
-				if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
+				if (processed == totalFiles || std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
 					emit totalProgress(processed, totalFiles);
 					lastProgressTime = now;
 				}
@@ -535,7 +536,7 @@ void CopyWorker::run() {
 			processed++;
 			// Throttle progress
 			auto now = std::chrono::steady_clock::now();
-			if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
+			if (processed == totalFiles || std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
 				emit totalProgress(processed, totalFiles);
 				lastProgressTime = now;
 			}
@@ -557,7 +558,8 @@ void CopyWorker::run() {
 		auto now = std::chrono::steady_clock::now();
 		if (processed == totalFiles || std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
 			emit totalProgress(processed, totalFiles);
-				lastProgressTime = now;
+			lastProgressTime = now;
+			LOG(LogLevel::DEBUG) << "Emit total progress";
 		}
 	}
 
@@ -588,6 +590,7 @@ void CopyWorker::run() {
 // Handles the low-level copying of a single file: reading, writing, calculating hash, and syncing to disk.
 bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffer, size_t bufferSize, bool isTopLevel, bool isLastFile, FileSystemType fsType) {
 	int fd_in = -1;
+	LOG(LogLevel::DEBUG) << "Copying file:" << src.c_str();
 
 	// Open the source file only if not in dry run mode
 	if (!Config::DRY_RUN) {
@@ -713,6 +716,9 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 
 	// Force 100% and reset speed graph after copying
 	int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
+	
+	if (isLastFile && !Config::CHECKSUM_ENABLED)
+		totalPercent = 100;
 
 	emit progressChanged(
 		QString::fromStdString(src.string()),
@@ -720,13 +726,17 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 		100, totalPercent, 0, 0, 0
 	);
 
+	LOG(LogLevel::DEBUG) << "Emit progressChanged";
+	LOG(LogLevel::DEBUG) << "Emit totalPercent" << totalPercent;
+
 	// Grouped Syncing Logic
-	// Only sync if we have accumulated enough bytes or this is the last file.
-	bool shouldSync = (m_unflushedBytes >= 64 * 1024 * 1024) || isLastFile;
+	// Only sync if the file is large (per user definition) or 
+	// we have accumulated enough bytes or this is the last file.
+	bool shouldSync = (fileSize >= Config::SYNC_THRESHOLD_MB) || (m_unflushedBytes >= 64 * 1024 * 1024) || isLastFile;
 	bool useSyncFileRange = (fsType == FileSystemType::EXT); // Only for EXT and XFS
 
 	// Start flushing to disk asynchronously while we calculate the hash
-	if (shouldSync && useSyncFileRange) {
+	if (shouldSync && useSyncFileRange && (Config::CHECKSUM_ENABLED || m_mode == Move)) {
 		// Start the write-out (Non-blocking)
 		sync_file_range(fd_out, 0, 0, SYNC_FILE_RANGE_WRITE);
 		LOG(LogLevel::DEBUG) << "---------------------------sync_file_range";
@@ -779,8 +789,8 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 	uint64_t diskHash = 0;
 	bool checksumFailed = false;
 
-	if (Config::CHECKSUM_ENABLED) {
-		if (!verifyFile(src, dest, fd_out, srcHash, diskHash, buffer, bufferSize)) {
+	if (Config::CHECKSUM_ENABLED && shouldSync) {
+		if (!verifyFile(src, dest, fd_out, srcHash, diskHash, buffer, bufferSize, isLastFile)) {
 			LOG(LogLevel::ERROR) << "Verification failed:" << dest.c_str();
 			// Verification failed or was cancelled during verification
 			try {
@@ -818,10 +828,12 @@ bool CopyWorker::verifyFile(
 	uint64_t expectedHash,
 	uint64_t &outDiskHash,
 	char *buffer,
-	size_t bufferSize) 
+	size_t bufferSize,
+	bool isLastFile) 
 {
-	uintmax_t syncThreshold = static_cast<uintmax_t>(Config::SYNC_THRESHOLD_MB) * 1024 * 1024;
+	// uintmax_t syncThreshold = static_cast<uintmax_t>(Config::SYNC_THRESHOLD_MB) * 1024 * 1024;
 	emit statusChanged(Verifying); // Update UI status
+	LOG(LogLevel::DEBUG) << "Verifying file:" << src.c_str();
 
 	// Hybrid Strategy for Verification:
 	// Small files: Standard buffered read (fast, reads from Cache if we skipped fdatasync).
@@ -830,7 +842,8 @@ bool CopyWorker::verifyFile(
 	qint64 fileSize = fs::file_size(dest);
 
 	// Optimization: Skip O_DIRECT entirely for files smaller than alignment
-	if (fileSize >= syncThreshold && fileSize >= ALIGNMENT) {
+	if (fileSize >= ALIGNMENT) {
+	// if (fileSize >= syncThreshold && fileSize >= ALIGNMENT) {
 		useDirect = true;
 	}
 
@@ -902,6 +915,9 @@ bool CopyWorker::verifyFile(
 
 	// Force 100% and reset speed graph after verification
 	int totalPercent = (int)((m_totalBytesProcessed * 100) / m_totalWorkBytes);
+
+	if (isLastFile)
+		totalPercent = 100;
 
 	emit progressChanged(
 		QString::fromStdString(src.string()),

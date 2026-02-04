@@ -73,7 +73,7 @@ namespace Config {
 
 	// ----------- UI constants -----------------
 	inline constexpr int WINDOW_WIDTH = 650;
-	inline constexpr int WINDOW_HEIGHT_EXPANDED = 850;
+	inline constexpr int WINDOW_HEIGHT_EXPANDED = 700;
 	inline constexpr int SPEED_GRAPH_MIN_HEIGHT = 200;
 
 	// ----------- Speed Graph ------------------
@@ -105,7 +105,10 @@ namespace Config {
 	inline double SPEED_GRAPH_MAX_SPEED = Defaults::SPEED_GRAPH_MAX_SPEED;
 
 	// Files larger than this (in MB) will be forced to disk (fdatasync)
-	inline int SYNC_THRESHOLD_MB = Defaults::SYNC_THRESHOLD_MB;
+	// User Control: Users with high-speed NVMe drives might set the threshold to 0MB 
+	// to verify everything from disk, while users with slow HDD/USB drives 
+	// can set it higher to maintain responsiveness.
+	inline int SYNC_THRESHOLD_MB = Defaults::SYNC_THRESHOLD_MB * 1024 * 1024;
 
 	// Select files in file manager after copy
 	inline bool SELECT_FILES_AFTER_COPY = Defaults::SELECT_FILES_AFTER_COPY;

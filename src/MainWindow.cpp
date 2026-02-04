@@ -92,7 +92,7 @@ void SpeedGraph::paintEvent(QPaintEvent *) {
 	// Define margins for labels
 	const int leftMargin = Config::SPEED_GRAPH_ALIGN_LABELS_RIGHT ? 5 : 70;
 	const int rightMargin = Config::SPEED_GRAPH_ALIGN_LABELS_RIGHT ? 70 : 5;
-	const int topMargin = 10;
+	const int topMargin = 15;
 	const int bottomMargin = Config::SPEED_GRAPH_SHOW_TIME_LABELS ? 30 : 5;
 
 	int w = width();
@@ -540,41 +540,6 @@ void MainWindow::onTotalProgress(int fileCount, int totalFiles) {
 	m_progress_updated = true;
 }
 
-/*----------------------------------------------------------------
-  Overrides the window's close event.
-  If a transfer is in progress, it prompts the user for confirmation
-  before cancelling the worker and closing the application.
-------------------------------------------------------------------*/
-void MainWindow::closeEvent(QCloseEvent *event) {
-	LOG(LogLevel::INFO) << "Close event received.";
-
-	if (m_worker && m_worker->isRunning()) {
-		QMessageBox::StandardButton reply;
-		reply = QMessageBox::question(this, tr("Confirm Exit"),
-			tr("A file transfer is in progress.\nAre you sure you want to cancel the transfer and exit?"),
-			QMessageBox::Yes | QMessageBox::No);
-
-		if (reply == QMessageBox::No) {
-			event->ignore();
-			return;
-		}
-
-		// Update UI to show we are stopping
-		ui->labelStatus->setText(tr("Stopping and removing partial files..."));
-
-		// Signal the thread to stop
-		LOG(LogLevel::INFO) << "Cancelling copy worker.";
-		m_worker->cancel();
-
-		// Wait for the thread to finish safely.
-		// This ensures the worker cleans up files and exits run() before we
-		// destroy it.
-		LOG(LogLevel::INFO) << "Waiting for copy worker to finish.";
-		m_worker->wait();
-	}
-
-	event->accept();
-}
 
 /*----------------------------------------------------------------
   Toggles the paused/resumed state of the copy operation.
@@ -846,6 +811,9 @@ void MainWindow::onFinished() {
 	LOG(LogLevel::INFO) << "Done.";
 	m_secondsLeft = 0;
 	m_progress_updated = true;
+	// Display source and destination folders
+	m_currentDest = m_destFolder;
+	m_currentFile = m_sourceFolder;
 	updateProgressUi();
 	m_graphTimer->stop(); // Stop the graph once finished
 	updateTaskbarProgress(0); // Clear progress bar
@@ -873,6 +841,22 @@ void MainWindow::onFinished() {
 		close();
 	}
 }
+
+
+/*----------------------------------------------------------------
+  Slot that is called each time a single file is successfully
+  copied and verified. It logs the file to history and triggers
+  the file manager highlight if enabled.
+------------------------------------------------------------------*/
+void MainWindow::onFileCompleted(QString path, QString srcHash, QString destHash, bool isTopLevel) {
+	logHistory(path, "", srcHash, destHash);
+
+	if (isTopLevel && Config::SELECT_FILES_AFTER_COPY) {
+		m_topLevelItems.append(path);
+		highlightFile(m_topLevelItems);
+	}
+}
+
 
 /*----------------------------------------------------------------
   Updates the progress bar on the application's taskbar/dock icon
@@ -1091,19 +1075,6 @@ void MainWindow::logHistory(
 	m_loggedFiles.insert(path);
 }
 
-/*----------------------------------------------------------------
-  Slot that is called each time a single file is successfully
-  copied and verified. It logs the file to history and triggers
-  the file manager highlight if enabled.
-------------------------------------------------------------------*/
-void MainWindow::onFileCompleted(QString path, QString srcHash, QString destHash, bool isTopLevel) {
-	logHistory(path, "", srcHash, destHash);
-	
-	if (isTopLevel && Config::SELECT_FILES_AFTER_COPY) {
-		m_topLevelItems.append(path);
-		highlightFile(m_topLevelItems);
-	}
-}
 
 /*----------------------------------------------------------------
   Uses the D-Bus `org.freedesktop.FileManager1` interface to
@@ -1125,9 +1096,29 @@ void MainWindow::highlightFile(const QStringList &paths) {
 		"org.freedesktop.FileManager1",
 		"ShowItems"
 	);
-	message << uris << QString("0"); // StartupId
+
+	// This is a way to get a 'legal' ID on X11/Wayland without extra libs
+	WId wid = this->winId();
+	QString startupId = QString("0");
+
+	// On X11, the window ID + a timestamp often works as a token
+	startupId = QString("%1_%2_desktop_file_copier").arg(wid).arg(QDateTime::currentMSecsSinceEpoch());
+	// Format: <app_name>-<timestamp>-<hostname>-<wid>_TIME<timestamp>
+	// QString startupId = QString("desktop-file-copier-%1-%2_TIME%2")
+	// 						.arg(wid)
+	// 						.arg(QDateTime::currentMSecsSinceEpoch());
+
+	message << uris << startupId; // StartupId
 
 	QDBusConnection::sessionBus().call(message, QDBus::NoBlock);
+
+	// Force the window manager to remember YOU are active.
+	// We use a slight delay because D-Bus is asynchronous;
+	// if we call this too fast, Dolphin hasn't popped up yet.
+	// QTimer::singleShot(100, this, [this]() {
+	// 	this->raise();
+	// 	this->activateWindow();
+	// });
 
 	// QDBusReply<void> reply = QDBusConnection::sessionBus().call(message);
 
@@ -1137,4 +1128,39 @@ void MainWindow::highlightFile(const QStringList &paths) {
 	// } else {
 	// 	qDebug() << "D-Bus call sent successfully.";
 	// }
+}
+
+
+/*----------------------------------------------------------------
+  Overrides the window's close event.
+  If a transfer is in progress, it prompts the user for confirmation
+  before cancelling the worker and closing the application.
+------------------------------------------------------------------*/
+void MainWindow::closeEvent(QCloseEvent *event) {
+	LOG(LogLevel::INFO) << "Close event received.";
+
+	if (m_worker && m_worker->isRunning()) {
+		QMessageBox::StandardButton reply;
+		reply = QMessageBox::question(this, tr("Confirm Exit"), tr("A file transfer is in progress.\nAre you sure you want to cancel the transfer and exit?"), QMessageBox::Yes | QMessageBox::No);
+
+		if (reply == QMessageBox::No) {
+			event->ignore();
+			return;
+		}
+
+		// Update UI to show we are stopping
+		ui->labelStatus->setText(tr("Stopping and removing partial files..."));
+
+		// Signal the thread to stop
+		LOG(LogLevel::INFO) << "Cancelling copy worker.";
+		m_worker->cancel();
+
+		// Wait for the thread to finish safely.
+		// This ensures the worker cleans up files and exits run() before we
+		// destroy it.
+		LOG(LogLevel::INFO) << "Waiting for copy worker to finish.";
+		m_worker->wait();
+	}
+
+	event->accept();
 }

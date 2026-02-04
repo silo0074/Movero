@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>735</width>
-    <height>400</height>
+    <height>413</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -44,7 +44,7 @@
      <item>
       <widget class="QStackedWidget" name="stackedWidget">
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <widget class="QWidget" name="page_1">
         <layout class="QVBoxLayout" name="verticalLayout_Page1">
@@ -222,7 +222,7 @@
            <item>
             <widget class="QSpinBox" name="spinSyncThreshold">
              <property name="toolTip">
-              <string>Files larger than this will be forced to disk to ensure physical integrity.</string>
+              <string>Files larger than this will be forced to disk to ensure physical integrity. Set it to 0 to always check.</string>
              </property>
              <property name="maximum">
               <number>10240</number>
