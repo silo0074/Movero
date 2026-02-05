@@ -22,6 +22,11 @@ namespace Config {
 		inline constexpr bool CHECKSUM_ENABLED = true;
 		inline constexpr bool COPY_FILE_MODIFICATION_TIME = true;
 		inline constexpr bool SANITIZE_FILENAMES = true;
+		inline constexpr int DISK_SPACE_SAFETY_MARGIN_MB = 50;
+		inline constexpr int BUFFER_SIZE_MB = 8;
+		inline constexpr bool DRY_RUN = false;
+		inline constexpr int DRY_RUN_FILE_SIZE_MB = 10;
+		inline constexpr int DRY_RUN_FILL_TARGET_MB = 0;
 		inline constexpr char UI_STYLE[] = "";
 		inline constexpr char LANGUAGE[] = "en";
 
@@ -49,8 +54,10 @@ namespace Config {
 	inline constexpr int UPDATE_INTERVAL_MS = 100;
 
 	// Set to true to bypass clipboard and test with a dummy file
-	inline constexpr bool DRY_RUN = false;
-	inline constexpr uintmax_t DRY_RUN_FILE_SIZE = 4ULL * 1024 * 1024 * 1024;
+	inline bool DRY_RUN = Defaults::DRY_RUN;
+	inline uintmax_t DRY_RUN_FILE_SIZE = Defaults::DRY_RUN_FILE_SIZE_MB * 1024 * 1024;
+	// If > 0, creates multiple files of DRY_RUN_FILE_SIZE until this target is reached
+	inline uintmax_t DRY_RUN_FILL_TARGET = Defaults::DRY_RUN_FILL_TARGET_MB * 1024 * 1024;
 
 	// Auto-close window when finished
 	inline bool CLOSE_ON_FINISH = Defaults::CLOSE_ON_FINISH;
@@ -122,13 +129,13 @@ namespace Config {
 	// contiguous "bursts" of data.
 	// CPU Cache: If the buffer is too large (e.g., 128MB), it won't fit in the
 	// CPU's L3 cache, which can actually slow down the checksum calculation (XXH64_update).
-	inline constexpr size_t BUFFER_SIZE = 8 * 1024 * 1024;
+	inline size_t BUFFER_SIZE = Defaults::BUFFER_SIZE_MB * 1024 * 1024;
 
 	// Interval at which the copy worker sends data to main thread
 	inline constexpr double SPEED_UPDATE_INTERVAL = 0.05; // 50ms (20Hz)
 
 	// 50MB default
-	inline constexpr uintmax_t DISK_SPACE_SAFETY_MARGIN = 50 * 1024 * 1024;
+	inline uintmax_t DISK_SPACE_SAFETY_MARGIN = Defaults::DISK_SPACE_SAFETY_MARGIN_MB * 1024 * 1024;
 
 	void load();
 	void save();

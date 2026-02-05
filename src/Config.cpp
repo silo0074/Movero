@@ -10,6 +10,11 @@ namespace Config {
 		CHECKSUM_ENABLED = s.value("checksumEnabled", Defaults::CHECKSUM_ENABLED).toBool();
 		COPY_FILE_MODIFICATION_TIME = s.value("copyFileModTime", Defaults::COPY_FILE_MODIFICATION_TIME).toBool();
 		SANITIZE_FILENAMES = s.value("sanitizeFilenames", Defaults::SANITIZE_FILENAMES).toBool();
+		DISK_SPACE_SAFETY_MARGIN = s.value("diskSafetyMarginMB", Defaults::DISK_SPACE_SAFETY_MARGIN_MB).toInt() * 1024 * 1024;
+		BUFFER_SIZE = s.value("bufferSizeMB", Defaults::BUFFER_SIZE_MB).toInt() * 1024 * 1024;
+		DRY_RUN = s.value("dryRun", Defaults::DRY_RUN).toBool();
+		DRY_RUN_FILE_SIZE = s.value("dryRunFileSizeMB", Defaults::DRY_RUN_FILE_SIZE_MB).toULongLong() * 1024 * 1024;
+		DRY_RUN_FILL_TARGET = s.value("dryRunFillTargetMB", Defaults::DRY_RUN_FILL_TARGET_MB).toULongLong() * 1024 * 1024;
 		SPEED_GRAPH_SHOW_TIME_LABELS = s.value("graphShowTime", Defaults::SPEED_GRAPH_SHOW_TIME_LABELS).toBool();
 		SPEED_GRAPH_ALIGN_LABELS_RIGHT = s.value("graphAlignRight", Defaults::SPEED_GRAPH_ALIGN_LABELS_RIGHT).toBool();
 		SPEED_GRAPH_HISTORY_SIZE_USER = s.value("graphHistorySize", Defaults::SPEED_GRAPH_HISTORY_SIZE_USER).toInt();
@@ -29,6 +34,11 @@ namespace Config {
 		s.setValue("checksumEnabled", CHECKSUM_ENABLED);
 		s.setValue("copyFileModTime", COPY_FILE_MODIFICATION_TIME);
 		s.setValue("sanitizeFilenames", SANITIZE_FILENAMES);
+		s.setValue("diskSafetyMarginMB", (int)(DISK_SPACE_SAFETY_MARGIN / (1024 * 1024)));
+		s.setValue("bufferSizeMB", (int)(BUFFER_SIZE / (1024 * 1024)));
+		s.setValue("dryRun", DRY_RUN);
+		s.setValue("dryRunFileSizeMB", (qint64)(DRY_RUN_FILE_SIZE / (1024 * 1024)));
+		s.setValue("dryRunFillTargetMB", (qint64)(DRY_RUN_FILL_TARGET / (1024 * 1024)));
 		s.setValue("graphShowTime", SPEED_GRAPH_SHOW_TIME_LABELS);
 		s.setValue("graphAlignRight", SPEED_GRAPH_ALIGN_LABELS_RIGHT);
 		s.setValue("graphHistorySize", SPEED_GRAPH_HISTORY_SIZE_USER);

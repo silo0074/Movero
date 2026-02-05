@@ -29,6 +29,11 @@
      </item>
      <item>
       <property name="text">
+       <string>Copier</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
        <string>UI</string>
       </property>
      </item>
@@ -157,6 +162,143 @@
          </item>
         </layout>
        </widget>
+       <widget class="QWidget" name="page_Copier">
+        <layout class="QVBoxLayout" name="verticalLayout_Copier">
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_Sync">
+           <item>
+            <widget class="QLabel" name="label_Sync">
+             <property name="text">
+              <string>Force Sync Threshold (MB):</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="spinSyncThreshold">
+             <property name="toolTip">
+              <string>Files larger than this will be forced to disk to ensure physical integrity.</string>
+             </property>
+             <property name="maximum">
+              <number>10240</number>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_Safety">
+           <item>
+            <widget class="QLabel" name="label_Safety">
+             <property name="text">
+              <string>Disk Space Safety Margin (MB):</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="spinSafetyMargin">
+             <property name="toolTip">
+              <string>Minimum free space required on destination before starting copy.</string>
+             </property>
+             <property name="maximum">
+              <number>10240</number>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_Buffer">
+           <item>
+            <widget class="QLabel" name="label_Buffer">
+             <property name="text">
+              <string>Copy Buffer Size (MB):</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="spinBufferSize">
+             <property name="toolTip">
+              <string>Size of the memory buffer used for copying. 8MB is usually optimal.</string>
+             </property>
+             <property name="minimum">
+              <number>1</number>
+             </property>
+             <property name="maximum">
+              <number>1024</number>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_DryRun">
+           <property name="title">
+            <string>Dry Run / Fake Drive Test</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_DryRun">
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_DryRunSize">
+              <item>
+               <widget class="QLabel" name="label_DryRunSize">
+                <property name="text">
+                 <string>File Size (MB):</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="spinDryRunSize">
+                <property name="maximum">
+                 <number>1024000</number>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_DryRunFill">
+              <item>
+               <widget class="QLabel" name="label_DryRunFill">
+                <property name="text">
+                 <string>Fill Target (MB):</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="spinDryRunFill">
+                <property name="toolTip">
+                 <string>Total size to fill. Set to 0 to create a single file.</string>
+                </property>
+                <property name="maximum">
+                 <number>10240000</number>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer_Copier">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
        <widget class="QWidget" name="page_2">
         <layout class="QVBoxLayout" name="verticalLayout_Page2">
          <item>
@@ -210,27 +352,6 @@
              </property>
              <property name="maximum">
               <double>10000.000000000000000</double>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_Sync">
-           <item>
-            <widget class="QLabel" name="label_Sync">
-             <property name="text">
-              <string>Force Sync Threshold (MB):</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QSpinBox" name="spinSyncThreshold">
-             <property name="toolTip">
-              <string>Files larger than this will be forced to disk to ensure physical integrity.</string>
-             </property>
-             <property name="maximum">
-              <number>10240</number>
              </property>
             </widget>
            </item>

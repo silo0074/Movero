@@ -1,6 +1,5 @@
 #include "StartupHandler.h"
 #include "Config.h"
-#include "LogHelper.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QCoreApplication>
@@ -82,7 +81,7 @@ StartupOptions StartupHandler::parse(const QStringList &args) {
 			}
 		}
 
-		if (options.sources.empty()) {
+		if (!Config::DRY_RUN && options.sources.empty()) {
 			options.valid = false;
 			options.errorMessage = tr("No files found in clipboard!");
 			return options;
@@ -104,7 +103,7 @@ StartupOptions StartupHandler::parse(const QStringList &args) {
 	options.dest = destDir.toStdString();
 
 	// Detect Mode from Clipboard if not explicitly set via cp/mv
-	if (arg1 != "cp" && arg1 != "mv") {
+	if (!Config::DRY_RUN && arg1 != "cp" && arg1 != "mv") {
 		ClipboardAction action = detectClipboardAction();
 		options.mode = (action == ClipboardAction::Move) ? OperationMode::Move : OperationMode::Copy;
 	}

@@ -251,8 +251,21 @@ void CopyWorker::run() {
 
 	if (Config::DRY_RUN) {
 		// Simulate a file task
-		totalBytesRequired = Config::DRY_RUN_FILE_SIZE;
-		tasks.push_back({"DRY_RUN_SOURCE", fs::path(m_destDir) / "DRY_RUN.dat"});
+		uintmax_t fileSize = Config::DRY_RUN_FILE_SIZE;
+		uintmax_t fillTarget = Config::DRY_RUN_FILL_TARGET;
+
+		if (fillTarget > 0 && fileSize > 0) {
+			uintmax_t count = fillTarget / fileSize;
+			if (count == 0) count = 1;
+			for (uintmax_t i = 0; i < count; ++i) {
+				std::string name = "DRY_RUN_" + std::to_string(i + 1) + ".dat";
+				tasks.push_back({"DRY_RUN_SOURCE", fs::path(m_destDir) / name});
+				totalBytesRequired += fileSize;
+			}
+		} else {
+			totalBytesRequired = fileSize;
+			tasks.push_back({"DRY_RUN_SOURCE", fs::path(m_destDir) / "DRY_RUN.dat"});
+		}
 		emit statusChanged(DryRunGenerating);
 
 	} else {

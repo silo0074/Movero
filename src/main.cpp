@@ -42,7 +42,9 @@ using std::endl;
 // Build: The .qm is automatically compiled and put into :/i18n/ or /translations
 // depending on the CMakeLists settings.
 
-
+// What it finds: Leaks (memory allocated but never freed) 
+// and "Heuristic" errors (writing past the end of an array).
+// valgrind --leak-check=full ./Movero
 
 bool isXcbPluginAvailable() {
 	// Get the path where Qt expects platform plugins
@@ -81,30 +83,19 @@ int main(int argc, char *argv[]) {
 	LogManager::init();
 
 	QApplication app(argc, argv);
+	app.setOrganizationName(APP_NAME);
+	app.setApplicationName(APP_NAME);
+	app.setDesktopFileName(QString(APP_NAME) + ".desktop");
+
+	// Load user settings
+	// Must be done after setOrganizationName
+	Config::load();
 
 	LOG(LogLevel::INFO) << APP_NAME << "started.";
 	LOG(LogLevel::INFO) << "Version" << APP_VERSION;
-
-	// Create a temporary path for the lock file
-	// A lock file is a temporary file created when the app starts. 
-	// If a second instance tries to start, it sees the file exists and is 
-	// "locked" by another Process ID (PID), so it exits.
-	// If app crashes, QLockFile is smart enough to check if the PID stored in the lock file 
-	// is still active. If the PID is dead, it will automatically break the old lock 
-	// and let the new instance start.
-    QString tmpDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    QLockFile lockFile(tmpDir + "/" + APP_NAME + "_unique_lock.lock");
-
-    // Try to lock the file. If it fails, another instance is running.
-    if (!lockFile.tryLock(100)) { // Wait 100ms to be sure
-        QMessageBox::warning(
-			nullptr, 
-			QCoreApplication::translate("Main","Already Running"), 
-			QString::fromStdString(APP_NAME) + 
-			QCoreApplication::translate("Main", " is already running. Please close the other instance first.")
-		);
-        return 0; 
-    }
+	if (Config::DRY_RUN) {
+		LOG(LogLevel::INFO) << "Using dry run mode.";
+	}
 
 	// Set global stylesheet
 	QFile styleFile(":/style.qss");
@@ -113,11 +104,7 @@ int main(int argc, char *argv[]) {
 		qApp->setStyleSheet(styleSheet);
 	}
 
-	app.setOrganizationName(APP_NAME);
-	app.setApplicationName(APP_NAME);
-	app.setDesktopFileName(QString(APP_NAME) + ".desktop");
-
-	Config::load();
+	// Set translator
 	QTranslator translator;
 	QString tr_path = ":/translations/" + QString(APP_NAME) + "_" + Config::LANGUAGE + ".qm";
 	if (translator.load(tr_path)) {
@@ -187,8 +174,30 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	// Create a temporary path for the lock file.
+	// A lock file is a temporary file created when the app starts.
+	// If a second instance tries to start, it sees the file exists and is
+	// "locked" by another Process ID (PID), so it exits.
+	// If app crashes, QLockFile is smart enough to check if the PID stored in the lock file
+	// is still active. If the PID is dead, it will automatically break the old lock
+	// and let the new instance start.
+	QString tmpDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+	QLockFile lockFile(tmpDir + "/" + APP_NAME + "_unique_lock.lock");
+
+	// Try to lock the file. If it fails, another instance is running.
+	if (!lockFile.tryLock(100)) { // Wait 100ms to be sure
+		QMessageBox::warning(
+			nullptr,
+			QCoreApplication::translate("Main", "Already Running"),
+			QString::fromStdString(APP_NAME) + QCoreApplication::translate("Main", " is already running. Please close the other instance first."));
+		return 0;
+	}
+
 	// Close dummy and show real window
 	// dummy.hide();
+
+	LOG(LogLevel::DEBUG) << "options.mode" << static_cast<int>(options.mode);
+	LOG(LogLevel::DEBUG) << "options.sources" << options.sources;
 
 	MainWindow w(options.mode, options.sources, options.dest);
 	w.show();

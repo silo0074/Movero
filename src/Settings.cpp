@@ -51,6 +51,11 @@ Settings::Settings(QWidget *parent)
 	ui->spinHistorySize->setValue(Config::SPEED_GRAPH_HISTORY_SIZE_USER);
 	ui->spinMaxSpeed->setValue(Config::SPEED_GRAPH_MAX_SPEED);
 	ui->spinSyncThreshold->setValue(Config::SYNC_THRESHOLD_MB);
+	ui->spinSafetyMargin->setValue(Config::DISK_SPACE_SAFETY_MARGIN / (1024 * 1024));
+	ui->spinBufferSize->setValue(Config::BUFFER_SIZE / (1024 * 1024));
+	ui->groupBox_DryRun->setChecked(Config::DRY_RUN);
+	ui->spinDryRunSize->setValue(Config::DRY_RUN_FILE_SIZE / (1024 * 1024));
+	ui->spinDryRunFill->setValue(Config::DRY_RUN_FILL_TARGET / (1024 * 1024));
 
 	// Menu Navigation
 	// When the menu selection changes, go to the correct page and run page-specific logic
@@ -78,9 +83,14 @@ Settings::Settings(QWidget *parent)
 
 	// Find the current style and set it as the active item
 	if (Config::UI_STYLE.isEmpty()) {
-		ui->comboStyle->setCurrentText(qApp->style()->objectName());
-		// QString defaultStyle = isSystemDark() ? "Fusion Dark" : "Fusion";
-		// ui->comboStyle->setCurrentText(defaultStyle);
+		QString currentStyle = qApp->style()->objectName();
+		// Case-insensitive search for the current style
+		for (int i = 0; i < ui->comboStyle->count(); ++i) {
+			if (ui->comboStyle->itemText(i).compare(currentStyle, Qt::CaseInsensitive) == 0) {
+				ui->comboStyle->setCurrentIndex(i);
+				break;
+			}
+		}
 	}
 
 	// Restart warning logic
@@ -147,6 +157,11 @@ Settings::Settings(QWidget *parent)
 		ui->spinHistorySize->setValue(Config::Defaults::SPEED_GRAPH_HISTORY_SIZE_USER);
 		ui->spinMaxSpeed->setValue(Config::Defaults::SPEED_GRAPH_MAX_SPEED);
 		ui->spinSyncThreshold->setValue(Config::Defaults::SYNC_THRESHOLD_MB);
+		ui->spinSafetyMargin->setValue(Config::Defaults::DISK_SPACE_SAFETY_MARGIN_MB);
+		ui->spinBufferSize->setValue(Config::Defaults::BUFFER_SIZE_MB);
+		ui->groupBox_DryRun->setChecked(Config::Defaults::DRY_RUN);
+		ui->spinDryRunSize->setValue(Config::Defaults::DRY_RUN_FILE_SIZE_MB);
+		ui->spinDryRunFill->setValue(Config::Defaults::DRY_RUN_FILL_TARGET_MB);
 
 		QString defLang = Config::Defaults::LANGUAGE;
 		int defLangIdx = ui->comboLanguage->findData(defLang);
@@ -292,6 +307,11 @@ void Settings::saveSettings() {
 	Config::SPEED_GRAPH_HISTORY_SIZE = Config::SPEED_GRAPH_HISTORY_SIZE_USER;
 	Config::SPEED_GRAPH_MAX_SPEED = ui->spinMaxSpeed->value();
 	Config::SYNC_THRESHOLD_MB = ui->spinSyncThreshold->value();
+	Config::DISK_SPACE_SAFETY_MARGIN = (uintmax_t)ui->spinSafetyMargin->value() * 1024 * 1024;
+	Config::BUFFER_SIZE = (size_t)ui->spinBufferSize->value() * 1024 * 1024;
+	Config::DRY_RUN = ui->groupBox_DryRun->isChecked();
+	Config::DRY_RUN_FILE_SIZE = (uintmax_t)ui->spinDryRunSize->value() * 1024 * 1024;
+	Config::DRY_RUN_FILL_TARGET = (uintmax_t)ui->spinDryRunFill->value() * 1024 * 1024;
 	Config::LANGUAGE = ui->comboLanguage->currentData().toString();
 
 	Config::save();

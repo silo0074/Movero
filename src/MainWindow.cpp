@@ -335,9 +335,16 @@ MainWindow::MainWindow(
 	m_detailsWindow->loadHistory();
 
 	// Save source folder
-	QString source = QString::fromStdString(sources[0]);
-	QFileInfo info(QDir::cleanPath(source));
-	m_sourceFolder = info.absolutePath();
+	QString source = "";
+	m_sourceFolder = "";
+
+	if (!Config::DRY_RUN) {
+		source = QString::fromStdString(sources[0]);
+		QFileInfo info(QDir::cleanPath(source));
+		m_sourceFolder = info.absolutePath();
+	} else {
+		m_sourceFolder = "Dry run mode";
+	}
 
 	// Save destination folder
 	m_destFolder = QString::fromStdString(dest);
@@ -355,15 +362,12 @@ MainWindow::MainWindow(
 	ui->labelFrom->setMinimumWidth(0);
 	ui->labelTo->setMinimumWidth(0);
 
-
 	// 1. Tell the window to resize itself based on layout needs
 	// layout()->setSizeConstraint(QLayout::SetMinAndMaxSize);
 
 	// 2. Remove the stretch factors that cause the 1:2 squeeze
 	// ui->verticalLayout->setStretch(0, 0);
 	// ui->verticalLayout->setStretch(1, 0);
-
-
 
 	ui->btnPause->setProperty("state", "playing"); // Initial state, used by global style sheet
 	ui->tabWidget->hide(); // hide 'show more' expandable window
@@ -396,27 +400,22 @@ MainWindow::MainWindow(
 		connect(m_worker, &CopyWorker::progressChanged, 
 			this, 
 			&MainWindow::onUpdateProgress
-			// Qt::DirectConnection
 		);
 		connect(m_worker, &CopyWorker::statusChanged, 
 			this, 
 			&MainWindow::onStatusChanged
-			// Qt::DirectConnection
 		);
 		connect(m_worker, &CopyWorker::totalProgress, 
 			this, 
 			&MainWindow::onTotalProgress
-			// Qt::DirectConnection
 		);
 		connect(m_worker, &CopyWorker::errorOccurred, 
 			this, 
 			&MainWindow::onError
-			// Qt::DirectConnection
 		);
 		connect(m_worker, &CopyWorker::finished, 
 			this, 
 			&MainWindow::onFinished
-			// Qt::DirectConnection
 		);
 		connect(m_worker, &CopyWorker::conflictNeeded,
 			this,
