@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Movero
+Exec=Movero %f
+Icon=Movero-icon
+Terminal=false
+NoDisplay=true  # This hides it from the app launcher/menu
+StartupWMClass=Movero

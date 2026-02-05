@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 	QApplication app(argc, argv);
 	app.setOrganizationName(APP_NAME);
 	app.setApplicationName(APP_NAME);
-	app.setDesktopFileName(QString(APP_NAME) + ".desktop");
+	app.setDesktopFileName(QString(APP_NAME));
 
 	// Load user settings
 	// Must be done after setOrganizationName
@@ -195,9 +195,6 @@ int main(int argc, char *argv[]) {
 
 	// Close dummy and show real window
 	// dummy.hide();
-
-	LOG(LogLevel::DEBUG) << "options.mode" << static_cast<int>(options.mode);
-	LOG(LogLevel::DEBUG) << "options.sources" << options.sources;
 
 	MainWindow w(options.mode, options.sources, options.dest);
 	w.show();

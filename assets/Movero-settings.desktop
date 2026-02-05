@@ -2,10 +2,10 @@
 Categories=Utility;FileTools;Qt;
 Comment[en_US]=Configure Movero file copier settings
 Comment=Configure Movero file copier settings
-Exec=/run/media/me/D_TOSHIBA_S300/Projects/Movero/build/debug/Movero --settings
+Exec=Movero --settings
 GenericName[en_US]=Movero
 GenericName=Movero
-Icon=/run/media/me/D_TOSHIBA_S300/Projects/Movero/icons/Movero.png
+Icon=Movero-icon
 Keywords=copy;move;settings;configuration;
 MimeType=
 Name[en_US]=Movero Settings

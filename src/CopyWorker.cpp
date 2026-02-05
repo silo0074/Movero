@@ -359,7 +359,7 @@ void CopyWorker::run() {
 	// Adjust graph history size for small files to avoid empty looking graph
 	// Heuristic: 1 MB per point. Min 50 points (5 seconds).
 	int calculatedPoints = m_totalWorkBytes / (1024 * 1024) / 10;
-	int minPoints = 10;
+	int minPoints = 1;
 	Config::SPEED_GRAPH_HISTORY_SIZE = std::min(Config::SPEED_GRAPH_HISTORY_SIZE_USER, 
 												std::max(minPoints, calculatedPoints));
 
@@ -738,9 +738,6 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 		QString::fromStdString(dest.string()),
 		100, totalPercent, 0, 0, 0
 	);
-
-	LOG(LogLevel::DEBUG) << "Emit progressChanged";
-	LOG(LogLevel::DEBUG) << "Emit totalPercent" << totalPercent;
 
 	// Grouped Syncing Logic
 	// Only sync if the file is large (per user definition) or 

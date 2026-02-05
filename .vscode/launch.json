@@ -5,11 +5,10 @@
             "name": "Debug (CMake)",
             "type": "cppdbg",
             "request": "launch",
-            // Use the variable provided by the CMake Tools extension
             "program": "${command:cmake.launchTargetPath}", 
             "args": ["settings"],
             "cwd": "${workspaceFolder}",
-            "MIMode": "gdb", // or "lldb"
+            "MIMode": "gdb",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -17,6 +16,16 @@
                     "ignoreFailures": true
                 }
             ]
+        },
+        {
+            "name": "Release (CMake)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}", 
+            "args": ["settings"],
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "stopAtEntry": false
         }
     ]
 }
