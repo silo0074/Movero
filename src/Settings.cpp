@@ -113,15 +113,6 @@ Settings::Settings(QWidget *parent)
 		} else {
 			qWarning() << "Failed to restart and release terminal.";
 		}
-
-		// Start the new instance
-		// Passing applicationFilePath() and the filtered args list
-		// if (QProcess::startDetached(QCoreApplication::applicationFilePath(), args)) {
-		// 	// Only quit if the new process successfully launched
-		// 	qApp->quit();
-		// } else {
-		// 	qWarning() << "Failed to restart the application.";
-		// }
 	});
 
 	// About Page
@@ -342,7 +333,13 @@ void Settings::openLogLocation() {
 
 void Settings::clearLogFile() {
 	QMessageBox::StandardButton reply;
-	reply = QMessageBox::question(this, tr("Clear Log"), tr("Are you sure you want to permanently clear the log file?"), QMessageBox::Yes | QMessageBox::No);
+	reply = QMessageBox::question(
+		this,
+		tr("Clear Log"), 
+		tr("Are you sure you want to permanently clear the log file?"), 
+		QMessageBox::Yes | QMessageBox::No
+	);
+
 	if (reply == QMessageBox::Yes) {
 		LogManager::clear();
 		loadLogFile(); // Refresh the view

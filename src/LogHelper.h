@@ -13,20 +13,21 @@ enum class LogLevel {
 };
 
 namespace LogManager {
-void init();
-QString getLogFilePath();
-void clear();
+	void init();
+	QString getLogFilePath();
+	void clear();
 }
 
-// The LOG macro now maps to the standard Qt logging functions.
+// The LOG macro maps to the standard Qt logging functions.
 // The custom message handler (in LogHelper.cpp) will format the output.
 #undef LOG
-#define LOG(level)                                                                     \
-	((level == LogLevel::DEBUG)   ? qDebug().noquote() :                                \
-	(level == LogLevel::INFO)    ? qInfo().noquote() :                                 \
-	(level == LogLevel::WARNING) ? qWarning().noquote() :                              \
-	(level == LogLevel::ERROR)   ? qCritical().noquote() :                             \
-								   qDebug().noquote())
+#define LOG(level)(											\
+	(level == LogLevel::DEBUG)   ? qDebug().noquote() :     \
+	(level == LogLevel::INFO)    ? qInfo().noquote() :      \
+	(level == LogLevel::WARNING) ? qWarning().noquote() :   \
+	(level == LogLevel::ERROR)   ? qCritical().noquote() :  \
+								   qDebug().noquote()       \
+)
 
 /*
 Usage example:
