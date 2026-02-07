@@ -2,7 +2,8 @@
 
 **Movero** is a high-performance, asynchronous file copying and moving utility for Linux, built with Qt. It is designed to bridge the gap between simple file managers and low-level system performance, offering features like `O_DIRECT` support, grouped disk flushing, and hardware-verified checksums.
 
-![Movero Icon](icon.png)
+<img src="icon.png" alt="Movero Icon" width="30%">
+
 
 ## 🚀 Key Features
 
@@ -33,3 +34,10 @@ cd movero
 mkdir build && cd build
 qmake ..
 make -j$(nproc)
+```
+
+## ❤️ Donations
+
+<a href="https://www.buymeacoffee.com/liviuistrate" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="60px" width="217px">
+</a>

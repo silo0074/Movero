@@ -201,20 +201,52 @@ void SpeedGraph::paintEvent(QPaintEvent *) {
 			p.drawText(textX, h - 5, timeLabel);
 		};
 
+
+		// 1. Calculate the label for the total duration (Max History)
+		QString maxTimeLabel;
+		int totalInt = static_cast<int>(totalSeconds + 0.5);
+		if (totalInt < 60) {
+			maxTimeLabel = QString("-%1s").arg(totalInt);
+		} else {
+			int m = totalInt / 60;
+			int s = totalInt % 60;
+			maxTimeLabel = (s == 0) ? QString("-%1m").arg(m) : QString("-%1m %2s").arg(m).arg(s);
+		}
+
+		// 2. Determine the width of that label
+		float maxLabelWidth = p.fontMetrics().horizontalAdvance(maxTimeLabel);
+
+		// 3. Define the dynamic threshold (grid left + label width + 10px padding)
+		double dynamicLeftThreshold = gridRect.left() + maxLabelWidth + 10.0;
+
 		// Always draw the Max History label (Leftmost)
 		drawTick(totalSeconds);
+
+		// 4. Update the loop to use the dynamic threshold
+		for (int t = 0; t < static_cast<int>(totalSeconds); t += intervalSeconds) {
+			double x = gridRect.right() - (t * pixelsPerSecond);
+
+			// Use the dynamic threshold instead of + 50
+			if (x < dynamicLeftThreshold)
+				break;
+
+			drawTick(static_cast<double>(t));
+		}
+
+		// Always draw the Max History label (Leftmost)
+		//drawTick(totalSeconds);
 
 		// Draw 0s and intermediates
 		// Stop if we get too close to the Max label (approx 50px clearance) to
 		// avoid overlap
-		double leftThreshold = gridRect.left() + 50;
+		// double leftThreshold = gridRect.left() + 50;
 
-		for (int t = 0; t < static_cast<int>(totalSeconds); t += intervalSeconds) {
-			double x = gridRect.right() - (t * pixelsPerSecond);
-			if (x < leftThreshold)
-				break;
-			drawTick(static_cast<double>(t));
-		}
+		// for (int t = 0; t < static_cast<int>(totalSeconds); t += intervalSeconds) {
+		// 	double x = gridRect.right() - (t * pixelsPerSecond);
+		// 	if (x < leftThreshold)
+		// 		break;
+		// 	drawTick(static_cast<double>(t));
+		// }
 	}
 
 	// Create and Draw the Path (Data)
@@ -251,7 +283,7 @@ void SpeedGraph::paintEvent(QPaintEvent *) {
 	}
 
 	// Draw Current Speed Indicator (Dash line if paused)
-	double currentY = gridRect.bottom() - ((m_history.back() / m_maxSpeed) * gridRect.height());
+	double currentY = gridRect.bottom() - ((m_history.back() / effectiveMax) * gridRect.height());
 	Qt::PenStyle lineStyle = m_isPaused ? Qt::DashLine : Qt::SolidLine;
 	p.setPen(QPen(m_isPaused ? Qt::red : Qt::black, 1, lineStyle));
 	p.drawLine(gridRect.left(), currentY, gridRect.right(), currentY);
@@ -894,14 +926,18 @@ void MainWindow::updateProgressUi() {
 	uint64_t totalBytes = 0;
 	uint64_t completedBytes = 0;
 
-	if (m_graph)
-		m_graph->addSpeedPoint(m_smoothedSpeed);
+	if(!m_resize_event){
+		if (m_graph)
+			m_graph->addSpeedPoint(m_smoothedSpeed);
 
-	// Decay speed if no data point received
-	m_smoothedSpeed *= 0.9;
+		// Decay speed if no data point received
+		m_smoothedSpeed *= 0.98;
 
-	if(!m_progress_updated) return;
-	m_progress_updated = false;
+		if(!m_progress_updated) return;
+		m_progress_updated = false;
+	}
+
+	m_resize_event = false;
 
 	if (m_worker) {
 		totalBytes = m_worker->m_totalSizeToCopy;
@@ -933,7 +969,7 @@ void MainWindow::updateProgressUi() {
 
 	// Status
 	if (m_status_code == CopyWorker::Status::Copying){
-		ui->labelStatus->setText(tr("Copying %1 of %2").arg(m_filesProcessed).arg(m_totalFiles));
+		ui->labelStatus->setText(tr("Copying %1 of %2").arg(m_filesProcessed + 1).arg(m_totalFiles));
 	} else {
 		ui->labelStatus->setText(m_status_string);
 	}
@@ -1001,12 +1037,6 @@ void MainWindow::updateProgressUi() {
 
 	// Update Taskbar / Dock Progress
 	updateTaskbarProgress(m_totalProgress);
-
-	// if (m_graph)
-	// 	m_graph->addSpeedPoint(m_smoothedSpeed);
-
-	// // Decay speed if no data point received
-	// m_smoothedSpeed *= 0.9;
 }
 
 
@@ -1017,6 +1047,7 @@ void MainWindow::updateProgressUi() {
 ------------------------------------------------------------------*/
 void MainWindow::resizeEvent(QResizeEvent *event) {
 	QWidget::resizeEvent(event);
+	m_resize_event = true;
 	updateProgressUi(); // Re-trigger elision with new widths
 }
 
