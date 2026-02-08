@@ -2,7 +2,7 @@
 Type=Application
 Name=Movero
 Exec=Movero %f
-Icon=Movero-icon
+Icon=movero
 Terminal=false
 NoDisplay=true  # This hides it from the app launcher/menu
 StartupWMClass=Movero

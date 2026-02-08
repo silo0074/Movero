@@ -9,15 +9,16 @@
 # Movero
 
 <p>
-  <img src="icon.png" alt="Movero Icon" width="10%" style="float:left; margin:0 1em 1em 0;">
-  A customizable file copier that can verify the data integrity using xxHash checksum. It features a graph that displays the speed versus time for an overview of the read/write performance. It is mainly designed for Linux but since it is written in C++ and Qt6 it can be adapted for Windows if desired. <br>
-  Since the default file copier in Linux cannot be replaced, the solution is to use a service menu to add a "Paste with Movero" in the right-click menu.
+  <img src="icons/Movero-icon.png" alt="Movero Icon" width="10%" style="float:left; margin:0 1em 1em 0;">
+  <p>A customizable file copier that can verify the data integrity using xxHash checksum. It features a graph that displays the speed versus time for an overview of the read/write performance. It is mainly designed for Linux but since it is written in C++ and Qt it can be adapted for Windows if desired. </p>
+  <p>Since the default file copier in Linux cannot be replaced, the solution is to use a service menu to add a "Paste with Movero" in the right-click menu.</p>
+  <p>Completed transfers are highlighted is supported file managers using D-Bus.</p>
 </p>
 
 <div style="clear:both;"></div>
 
 
-## 🚀 Key Features
+## 🚀 Features
 
 - **Hybrid Sync Strategy:** Balances data integrity and speed by batch-flushing data to disk (64MB default) to minimize I/O wait times.
 - **Hardware Verification:** Optionally bypasses the Linux Page Cache using `posix_fadvise` and `O_DIRECT` to ensure files are read directly from physical storage during checksum verification.
@@ -38,6 +39,8 @@ It implements several low-level Linux kernel optimizations:
 - Qt 6
 - xxHash library
 - Linux Kernel 5.x+ (for `sync_file_range` support)
+
+**Note on Installation**: Since these packages are not signed by a central authority, your package manager (YaST/DNF) may warn you about a "Signature verification failed." You can safely proceed by choosing "Ignore" or installing via CLI with the `--allow-unsigned-rpm` (zypper) or `--nogpgcheck` (dnf) flag.
 
 
 ## ⚙️ Configuration & Settings
@@ -68,7 +71,7 @@ The application Settings can be accessed using the start menu.
 To compile Movero from source, ensure you have Qt6 (Core, Gui, Widgets, DBus, LinguistTools) and libxxhash installed on your system.
 
 ### Prerequisites
-OpenSuse/Fedora (for Fedora replace zypper):
+OpenSuse/Fedora (for Fedora replace zypper with dnf):
 ```bash
 sudo zypper install CMake gcc-c++ mold lld xxhash-devel 
 qt6-base-devel qt6-tools-devel qt6-widgets-devel qt6-linguist-devel

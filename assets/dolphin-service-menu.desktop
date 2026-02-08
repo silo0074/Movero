@@ -11,9 +11,9 @@ Name=Paste with Movero
 Icon=edit-paste
 
 # Debug: Show Output in a Temporary Terminal
-Exec=konsole -e sh -c '/run/media/me/D_TOSHIBA_S300/Projects/Movero/build/debug/Movero --paste-to "%f"'
-#Exec=konsole --hold -e sh -c 'Movero --paste-to "%f"'
+# Exec=konsole -e sh -c 'Movero --paste-to "%f"'
+# Exec=konsole --hold -e sh -c 'Movero --paste-to "%f"'
 # Exec=gnome-terminal -- /bin/bash -c "Movero %f; exec /bin/bash"
 
 # %f passes the current folder path (destination)
-# Exec=Movero --paste-to %f
+Exec=Movero --paste-to %f
