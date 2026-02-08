@@ -124,6 +124,12 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 # Verify the scripts
 # rpm -qp --scripts Movero-1.0.0-Linux.rpm
 
+# 1. Generate the packages
+# cpack -G RPM && cpack -G DEB
+
+# 2. Run the checksum script manually using the CMake interpreter
+# cmake -P ../../packaging/generate_checksums.cmake
+
 # --- INSTALLATION RULES ---
 # These tell CPack what files to put inside the .deb and .rpm
 # When you run cmake .., it sets CMAKE_INSTALL_PREFIX to /usr/local by default. 
@@ -258,8 +264,6 @@ if(NOT TARGET uninstall)
         COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")
 endif()
 
-# Run the checksum script after the package is generated
-set(CPACK_POST_BUILD_SCRIPTS "${CMAKE_CURRENT_SOURCE_DIR}/packaging/generate_checksums.cmake")
-
 # This MUST be the very last line of the CPack section
 include(CPack)
+
