@@ -124,4 +124,5 @@ protected:
 	bool m_isPaused;
 	bool m_testMode = false;
 	bool m_progress_updated = false;
+	bool m_resize_event = false;
 };

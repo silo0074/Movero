@@ -180,6 +180,9 @@
               <property name="text">
                <string notr="true">From:</string>
               </property>
+              <property name="textInteractionFlags">
+               <set>Qt::TextInteractionFlag::LinksAccessibleByMouse|Qt::TextInteractionFlag::TextSelectableByMouse</set>
+              </property>
              </widget>
             </item>
             <item>
@@ -198,6 +201,9 @@
               </property>
               <property name="text">
                <string notr="true">To:</string>
+              </property>
+              <property name="textInteractionFlags">
+               <set>Qt::TextInteractionFlag::LinksAccessibleByMouse|Qt::TextInteractionFlag::TextSelectableByMouse</set>
               </property>
              </widget>
             </item>
