@@ -2,7 +2,7 @@
 ![Framework](https://img.shields.io/badge/Framework-Qt%206-blue?logo=qt)
 ![CMake](https://img.shields.io/badge/CMake-3.22%2B-blue?logo=cmake)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/silo0074/Movero/blob/main/LICENSE)
-![Release](https://img.shields.io/github/v/release/silo0074/Movero)
+![Release](https://img.shields.io/github/v/release/silo0074/Movero?include_prereleases)
 
 
 ## 📖 Table of Contents
