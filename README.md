@@ -5,9 +5,6 @@
 ![Release](https://img.shields.io/github/v/release/silo0074/Movero)
 
 
-# Movero
-
-```markdown
 ## 📖 Table of Contents
 * [🚀 Features](#-features)
 * [🛠 Advanced Technical Implementation](#-advanced-technical-implementation)
@@ -16,7 +13,11 @@
 * [🛠️ Build from Source](#️-build-from-source)
 * [❤️ Donations](#️-donations)
 * [📄 License](#-license)
-```
+
+<br>
+
+# Movero
+
 
 <table>
   <tr>
@@ -169,8 +170,9 @@ cpack -G RPM
   <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="60px" width="217px">
 </a>
 
+
 <br>
 
-## 📄 License
 
+## 📄 License
 This project is licensed under the [GPLv3](https://github.com/silo0074/Movero/blob/main/LICENSE) License.
