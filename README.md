@@ -56,9 +56,15 @@ It implements several low-level Linux kernel optimizations:
 ### Binary Installation (Recommended)
 Download the latest `.deb` (Ubuntu/Debian) or `.rpm` (Fedora/openSUSE) from the [Releases](https://github.com/silo0074/Movero/releases) page.
 
-Make it executable
+**Make it executable**
 ```bash
   chmod +x ./Movero-1.0.0-x86_64.rpm
+```
+
+**Sha256 Checksums:**
+You can verify the integrity of the downloaded binary using this command
+```bash
+sha256sum ./Movero-1.0.0-x86_64.rpm
 ```
 
 **Via Terminal (Safest for unsigned packages):**
