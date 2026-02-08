@@ -258,6 +258,8 @@ if(NOT TARGET uninstall)
         COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")
 endif()
 
+# Run the checksum script after the package is generated
+set(CPACK_POST_BUILD_SCRIPTS "${CMAKE_CURRENT_SOURCE_DIR}/packaging/generate_checksums.cmake")
 
 # This MUST be the very last line of the CPack section
 include(CPack)
