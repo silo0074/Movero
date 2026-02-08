@@ -56,18 +56,23 @@ It implements several low-level Linux kernel optimizations:
 ### Binary Installation (Recommended)
 Download the latest `.deb` (Ubuntu/Debian) or `.rpm` (Fedora/openSUSE) from the [Releases](https://github.com/silo0074/Movero/releases) page.
 
+Make it executable
+```bash
+  chmod +x ./Movero-1.0.0-x86_64.rpm
+```
+
 **Via Terminal (Safest for unsigned packages):**
 * **openSUSE:**
 ```bash
-  sudo zypper install --allow-unsigned-rpm ./Movero-1.0.0-1.x86_64.rpm
+  sudo zypper install --allow-unsigned-rpm ./Movero-1.0.0-x86_64.rpm
 ```
 * **Fedora:**
 ```bash
-  sudo dnf install --allow-unsigned-rpm ./Movero-1.0.0-1.x86_64.rpm
+  sudo dnf install --allow-unsigned-rpm ./Movero-1.0.0-x86_64.rpm
 ```
 * **Ubuntu/Debian:**
 ```bash
-  sudo apt install ./Movero-1.0.0-1.x86_64.deb
+  sudo apt install ./Movero-1.0.0-x86_64.deb
 ```
 
 **Note on Installation**: Since these packages are not signed by a central authority, your package manager (YaST/DNF) may warn you about a "Signature verification failed." You can safely proceed by choosing "Ignore" or installing via CLI with the `--allow-unsigned-rpm` (zypper) or `--nogpgcheck` (dnf) flag.
@@ -171,6 +176,7 @@ cpack -G RPM
 </a>
 
 
+<br>
 <br>
 
 
