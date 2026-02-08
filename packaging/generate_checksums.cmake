@@ -1,31 +1,29 @@
-# CPack defines CPACK_PACKAGE_DIRECTORY as the location where the final 
-# .rpm or .deb files are placed.
-message(STATUS "Post-build checksum script running in: ${CPACK_PACKAGE_DIRECTORY}")
+# This version looks in the directory where the command is executed
+set(TARGET_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+message(STATUS "Searching for packages in: ${TARGET_DIR}")
 
-# Look for the packages specifically in the final output directory
-file(GLOB PACKAGES 
-    "${CPACK_PACKAGE_DIRECTORY}/*.rpm" 
-    "${CPACK_PACKAGE_DIRECTORY}/*.deb"
-)
+file(GLOB PACKAGES "${TARGET_DIR}/*.rpm" "${TARGET_DIR}/*.deb")
 
 if(NOT PACKAGES)
-    message(WARNING "No packages found to checksum in ${CPACK_PACKAGE_DIRECTORY}")
+    message(FATAL_ERROR "No .rpm or .deb files found in ${TARGET_DIR}. Run cpack first.")
 endif()
 
 foreach(PACKAGE ${PACKAGES})
     get_filename_component(PACKAGE_NAME ${PACKAGE} NAME)
     
-    # Skip checksum files themselves if they exist
+    # Avoid checksumming existing .sha256 files
     if(PACKAGE_NAME MATCHES "\\.sha256$")
         continue()
     endif()
 
-    message(STATUS "Generating SHA256 for ${PACKAGE_NAME}...")
-    file(SHA256 "${PACKAGE}" CHECKSUM)
+    message(STATUS "Calculating SHA256 for: ${PACKAGE_NAME}")
+    file(SHA256 "${PACKAGE}" HASH_RESULT)
     
-    # Write individual .sha256 file
-    file(WRITE "${PACKAGE}.sha256" "${CHECKSUM}  ${PACKAGE_NAME}\n")
+    # Create the individual .sha256 file
+    file(WRITE "${PACKAGE}.sha256" "${HASH_RESULT}  ${PACKAGE_NAME}\n")
     
-    # Append to a master checksums.txt in the build folder
-    file(APPEND "${CPACK_PACKAGE_DIRECTORY}/checksums.txt" "${CHECKSUM}  ${PACKAGE_NAME}\n")
+    # Append to a master list
+    file(APPEND "${TARGET_DIR}/checksums.txt" "${HASH_RESULT}  ${PACKAGE_NAME}\n")
 endforeach()
+
+message(STATUS "Checksums generated successfully.")
