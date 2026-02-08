@@ -5,23 +5,40 @@
 ![Release](https://img.shields.io/github/v/release/silo0074/Movero)
 
 
-
 # Movero
 
-<p>
-  <img src="icons/Movero-icon.png" alt="Movero Icon" width="10%" style="float:left; margin:0 1em 1em 0;">
-  <p>A customizable file copier that can verify the data integrity using xxHash checksum. It features a graph that displays the speed versus time for an overview of the read/write performance. It is mainly designed for Linux but since it is written in C++ and Qt it can be adapted for Windows if desired. </p>
-  <p>Since the default file copier in Linux cannot be replaced, the solution is to use a service menu to add a "Paste with Movero" in the right-click menu.</p>
-  <p>Completed transfers are highlighted is supported file managers using D-Bus.</p>
-</p>
+```markdown
+## 📖 Table of Contents
+* [🚀 Features](#-features)
+* [🛠 Advanced Technical Implementation](#-advanced-technical-implementation)
+* [📥 Installation](#-installation)
+* [⚙️ Configuration & Settings](#️-configuration--settings)
+* [🛠️ Build from Source](#️-build-from-source)
+* [❤️ Donations](#️-donations)
+* [📄 License](#-license)
+```
 
-<div style="clear:both;"></div>
+<table>
+  <tr>
+    <td width="15%" valign="top">
+      <img src="icons/Movero-icon.png" alt="Movero Icon" width="100%">
+    </td>
+    <td>
+      <p>A customizable file copier that can verify the data integrity using xxHash checksum. It features a graph that displays the speed versus time for an overview of the read/write performance. It is mainly designed for Linux but since it is written in C++ and Qt it can be adapted for Windows if desired.</p>
+      <p>Since the default file copier in Linux cannot be replaced, the solution is to use a service menu to add a "Paste with Movero" in the right-click menu.</p>
+      <p>Completed transfers are highlighted in supported file managers using D-Bus.</p>
+    </td>
+  </tr>
+</table>
 
+<br>
 
 ## 🚀 Features
 
 - **Hybrid Sync Strategy:** Balances data integrity and speed by batch-flushing data to disk (64MB default) to minimize I/O wait times.
 - **Hardware Verification:** Optionally bypasses the Linux Page Cache using `posix_fadvise` and `O_DIRECT` to ensure files are read directly from physical storage during checksum verification.
+
+<br>
 
 ## 🛠 Advanced Technical Implementation
 
@@ -31,17 +48,37 @@ It implements several low-level Linux kernel optimizations:
 * **Zero-Cache Verification:** Implements the `fdatasync` + `POSIX_FADV_DONTNEED` sequence to guarantee that verification hashes are calculated from the platter/NAND, not RAM.
 * **D-Bus Integration:** Communicates with `org.freedesktop.FileManager1` to highlight completed transfers in your native file manager.
 
-
+<br>
 
 ## 📥 Installation
 
-### Prerequisites
-- Qt 6
-- xxHash library
-- Linux Kernel 5.x+ (for `sync_file_range` support)
+### Binary Installation (Recommended)
+Download the latest `.deb` (Ubuntu/Debian) or `.rpm` (Fedora/openSUSE) from the [Releases](https://github.com/silo0074/Movero/releases) page.
+
+**Via Terminal (Safest for unsigned packages):**
+* **openSUSE:**
+```bash
+  sudo zypper install --allow-unsigned-rpm ./Movero-1.0.0-1.x86_64.rpm
+```
+* **Fedora:**
+```bash
+  sudo dnf install --allow-unsigned-rpm ./Movero-1.0.0-1.x86_64.rpm
+```
+* **Ubuntu/Debian:**
+```bash
+  sudo apt install ./Movero-1.0.0-1.x86_64.deb
+```
 
 **Note on Installation**: Since these packages are not signed by a central authority, your package manager (YaST/DNF) may warn you about a "Signature verification failed." You can safely proceed by choosing "Ignore" or installing via CLI with the `--allow-unsigned-rpm` (zypper) or `--nogpgcheck` (dnf) flag.
 
+### System Requirements
+
+If you are running a minimal installation, ensure you have the following:
+- Qt 6.5+ (Widgets and DBus modules)
+- libxxhash
+- Linux Kernel 5.1+ (Required for sync_file_range used in hybrid sync)
+
+<br>
 
 ## ⚙️ Configuration & Settings
 
@@ -66,6 +103,7 @@ The application Settings can be accessed using the start menu.
 - **Max Speed (MB/s)**: Set the "floor" for the graph's Y-axis. The graph will dynamically scale upward if your transfer speed exceeds this value.
 - **Preview Mode**: "Preview file transfer window" allows you to test the UI and graph behavior without actually writing any data to disk.
 
+<br>
 
 ## 🛠️ Build from Source
 To compile Movero from source, ensure you have Qt6 (Core, Gui, Widgets, DBus, LinguistTools) and libxxhash installed on your system.
@@ -73,13 +111,13 @@ To compile Movero from source, ensure you have Qt6 (Core, Gui, Widgets, DBus, Li
 ### Prerequisites
 OpenSuse/Fedora (for Fedora replace zypper with dnf):
 ```bash
-sudo zypper install CMake gcc-c++ mold lld xxhash-devel 
+sudo zypper install CMake gcc-c++ mold lld xxhash-devel \
 qt6-base-devel qt6-tools-devel qt6-widgets-devel qt6-linguist-devel
 ```
 Ubuntu:
 ```bash
-sudo apt install cmake g++ mold lld libxxhash-dev
-qt6-base-dev qt6-base-dev-tools
+sudo apt install cmake g++ mold lld libxxhash-dev \
+qt6-base-dev qt6-base-dev-tools qt6-tools-dev
 ```
 
 ### Compile
@@ -111,6 +149,7 @@ cpack -G DEB
 cpack -G RPM
 ```
 
+<br>
 
 ## 🛠️ Built With
 
@@ -122,6 +161,7 @@ cpack -G RPM
 
     [CMake](https://cmake.org/) - The build system used for compilation and packaging.
 
+<br>
 
 ## ❤️ Donations
 
@@ -129,6 +169,7 @@ cpack -G RPM
   <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="60px" width="217px">
 </a>
 
+<br>
 
 ## 📄 License
 
