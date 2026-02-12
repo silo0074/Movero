@@ -31,6 +31,22 @@
 
 <br>
 
+| Copying | Paused |
+| :---: | :---: |
+| ![Copying](./images/Movero_Copying.png) | ![Paused](./images/Movero_Paused.png) |
+
+<details>
+<summary><b>Click to see more screenshots</b></summary>
+
+#### Settings
+![Settings](./images/Movero_Settings_General.png)
+
+#### Icon
+<img src="./icons/Movero-icon.png" alt="Icon" width="100" />
+</details>
+
+<br>
+
 ## 🛠 Advanced Technical Implementation
 
 It implements several low-level Linux kernel optimizations:
