@@ -18,19 +18,9 @@
 
 # Movero
 
-
-<table>
-  <tr>
-    <td width="120" valign="top">
-      <img src="icons/Movero-icon.png" alt="Movero Icon" width="120">
-    </td>
-    <td valign="top">
-      <p>A customizable file copier that can verify the data integrity using xxHash checksum. It features a graph that displays the speed versus time for an overview of the read/write performance. It is mainly designed for Linux but since it is written in C++ and Qt it can be adapted for Windows if desired.</p>
-      <p>Since the default file copier in Linux cannot be replaced, the solution is to use a service menu to add a <b>"Paste with Movero"</b> in the right-click menu.</p>
-      <p>Completed transfers are highlighted in supported file managers using D-Bus.</p>
-    </td>
-  </tr>
-</table>
+<p>A customizable file copier that can verify the data integrity using xxHash checksum. It features a graph that displays the speed versus time for an overview of the read/write performance. It is mainly designed for Linux but since it is written in C++ and Qt it can be adapted for Windows if desired.</p>
+<p>Since the default file copier in Linux cannot be replaced, the solution is to use a service menu to add a "Paste with Movero" in the right-click menu.</p>
+<p>Completed transfers are highlighted in supported file managers using D-Bus.</p>
 
 <br>
 
