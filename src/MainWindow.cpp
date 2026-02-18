@@ -513,7 +513,8 @@ void MainWindow::onUpdateProgress(QString src, QString dest, int percent,
 
 	if (curSpeed > 0.00001 || (percent == 100 && totalPercent == 100)) {
 		m_currentSpeed = curSpeed;
-		m_avgSpeed = avgSpeed;
+		// Keep avg speed after transfer is complete
+		if (percent != 100) m_avgSpeed = avgSpeed;
 		m_secondsLeft = secondsLeft;
 	}
 
