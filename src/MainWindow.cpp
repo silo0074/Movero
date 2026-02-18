@@ -684,8 +684,7 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
 	// dialog.setAttribute(Qt::WA_DeleteOnClose);
 
 	QVBoxLayout *layout = new QVBoxLayout(&dialog);
-	layout->addWidget(
-		new QLabel(tr("Destination file already exists. Select an action:"), &dialog));
+	layout->addWidget(new QLabel(tr("Destination file already exists. Select an action:"), &dialog));
 
 	// --- Details Grid ---
 	QGridLayout *grid = new QGridLayout();
@@ -701,10 +700,19 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
 		return QString::number(s / 1024.0, 'f', 2) + " KB";
 	};
 
-	// Use robust QFileInfo checks (in case file was moved/deleted in
-	// background)
-	QString srcDate = srcInfo.exists() ? srcInfo.lastModified().toString() : tr("Unknown");
-	QString destDate = destInfo.exists() ? destInfo.lastModified().toString() : tr("Unknown");
+	// Use robust QFileInfo checks (in case file was moved/deleted in background)
+	// Use birthTime() for creation date instead of lastModified()
+	QDateTime srcTime = srcInfo.birthTime();
+	if (!srcTime.isValid())
+		srcTime = srcInfo.lastModified();
+		// srcTime = srcInfo.metadataChangeTime(); // Fallback to status change
+	QString srcDate = srcInfo.exists() ? srcTime.toString() : tr("Unknown");
+
+	QDateTime destTime = destInfo.birthTime();
+	if (!destTime.isValid())
+		destTime = destInfo.lastModified();
+	QString destDate = destInfo.exists() ? destTime.toString() : tr("Unknown");
+
 	qint64 srcSize = srcInfo.exists() ? srcInfo.size() : 0;
 	qint64 destSize = destInfo.exists() ? destInfo.size() : 0;
 
@@ -716,6 +724,8 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
 	grid->addWidget(new QLabel(tr("<b>Source:</b>")), 0, 0);
 	QLabel *lblSrc = new QLabel(elidedSrc);
 	lblSrc->setToolTip(src);
+	// Make the label selectable by mouse
+	lblSrc->setTextInteractionFlags(Qt::TextSelectableByMouse);
 	grid->addWidget(lblSrc, 0, 1);
 	grid->addWidget(new QLabel(tr("Size: %1").arg(fmtSize(srcSize))), 1, 1);
 	grid->addWidget(new QLabel(tr("Date: %1").arg(srcDate)), 2, 1);
@@ -723,6 +733,8 @@ void MainWindow::onConflictNeeded(QString src, QString dest, QString suggestedNa
 	grid->addWidget(new QLabel(tr("<b>Destination:</b>")), 3, 0);
 	QLabel *lblDest = new QLabel(elidedDest);
 	lblDest->setToolTip(dest);
+	// Make the label selectable by mouse
+	lblDest->setTextInteractionFlags(Qt::TextSelectableByMouse);
 	grid->addWidget(lblDest, 3, 1);
 	grid->addWidget(new QLabel(tr("Size: %1").arg(fmtSize(destSize))), 4, 1);
 	grid->addWidget(new QLabel(tr("Date: %1").arg(destDate)), 5, 1);
@@ -1070,6 +1082,7 @@ void MainWindow::generateTestData() {
 	m_secondsLeft = 90;
 	m_currentFile = "Test_File_Data.dat";
 	m_currentDest = "/tmp/Test_File_Data.dat";
+	m_progress_updated = true;
 	updateProgressUi();
 }
 

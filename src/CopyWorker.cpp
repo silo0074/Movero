@@ -430,6 +430,7 @@ void CopyWorker::run() {
 				fs::last_write_time(task.dest, fs::last_write_time(task.src, ec), ec);
 			}
 			processed++;
+
 			// Throttle progress updates for directories
 			auto now = std::chrono::steady_clock::now();
 			if (processed == totalFiles || std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
@@ -570,6 +571,7 @@ void CopyWorker::run() {
 				emit errorOccurred({WriteError, QString::fromStdString(task.src.string())});
 			}
 			processed++;
+
 			// Throttle progress
 			auto now = std::chrono::steady_clock::now();
 			if (processed == totalFiles || std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
@@ -580,9 +582,15 @@ void CopyWorker::run() {
 		}
 
 		// copyFile returns true ONLY if checksum verification succeeds
-		if (copyFile(task.src, task.dest, buffer.get(), allocSize, task.isTopLevel, 
-					(&task == &tasks.back()), fsType)) 
-		{
+		bool ret_code = copyFile(task.src, 
+								task.dest, 
+								buffer.get(), 
+								allocSize, 
+								task.isTopLevel, 
+								(&task == &tasks.back()), 
+								fsType
+								);
+		if (ret_code == true) {
 			if (m_mode == Move && !Config::DRY_RUN) {
 				fs::remove(task.src);
 			}
@@ -592,10 +600,16 @@ void CopyWorker::run() {
 		
 		// Throttle total progress updates (e.g. max 20 times per second)
 		auto now = std::chrono::steady_clock::now();
-		if (processed == totalFiles || std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) {
+		if (ret_code == false || processed == totalFiles || 
+			std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProgressTime).count() > 50) 
+		{
 			emit totalProgress(processed, totalFiles);
 			lastProgressTime = now;
 			LOG(LogLevel::DEBUG) << "Emit total progress";
+		}
+
+		if (ret_code == false && Config::DRY_RUN) {
+			break;
 		}
 	}
 
@@ -646,7 +660,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 	int fd_out = open(dest.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644);
 
 	if ((!Config::DRY_RUN && fd_in < 0) || (fd_out < 0)) {
-		emit errorOccurred({FileOpenFailed, QString::fromStdString(src.string())});
+		emit errorOccurred({FileOpenFailed, QString::fromStdString(dest.string())});
 		if (fd_in >= 0)
 			close(fd_in);
 		if (fd_out >= 0)
