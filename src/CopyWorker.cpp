@@ -805,7 +805,8 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 	if (shouldSync && (Config::CHECKSUM_ENABLED || m_mode == Move)) {
 		if (useSyncFileRange) {
 			// Wait for completion (Blocking)
-			sync_file_range(fd_out, 0, 0, SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE | SYNC_FILE_RANGE_WAIT_AFTER);
+			sync_file_range(fd_out, 0, 0, 
+							SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE | SYNC_FILE_RANGE_WAIT_AFTER);
 		} else {
 			// Fallback for other filesystems
 			fdatasync(fd_out);
