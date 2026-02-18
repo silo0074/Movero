@@ -30,18 +30,19 @@ using std::endl;
 // sudo apt install cmake g++ mold lld libxxhash-dev \
 // qt6-base-dev qt6-base-dev-tools
 
-// # From your project root:
+// ------- Compile from project root:
 // mkdir build && cd build
 // cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=mold" ..
 // make -j$(nproc)
 
-// Workflow for translations
+// ------- Workflow for translations
 // Scan: Run the VSCodium task (CTRL+SHIFT+B).
 // cmake --build ${command:cmake.buildDirectory} --target Movero_lupdate
 // Translate: Open the .ts file in Qt Linguist and save.
 // Build: The .qm is automatically compiled and put into :/i18n/ or /translations
 // depending on the CMakeLists settings.
 
+// ------- Memory leak test
 // What it finds: Leaks (memory allocated but never freed) 
 // and "Heuristic" errors (writing past the end of an array).
 // valgrind --leak-check=full ./Movero

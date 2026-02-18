@@ -55,6 +55,33 @@
     ],
 
     "cSpell.words": [
-        "Dont"
+        "Dont",
+        "DONTNEED",
+        "AARRGGBB",
+		"Adwaita",
+		"DCMAKE",
+		"DEBUGHELPER",
+		"FADV",
+		"fadvise",
+		"fdatasync",
+		"gridline",
+		"Istrate",
+		"libqxcb",
+		"libxxhash",
+		"Liviu",
+		"lupdate",
+		"Movero",
+		"NOREUSE",
+		"NTFS",
+		"qgetenv",
+		"qproperty",
+		"qputenv",
+		"qresource",
+		"qtbase",
+		"syscall",
+		"tmpfs",
+		"unflushed",
+		"unpolish",
+		"utimensat"
     ]
 }

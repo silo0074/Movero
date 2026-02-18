@@ -933,10 +933,10 @@ void MainWindow::updateProgressUi() {
 		// Decay speed if no data point received
 		m_smoothedSpeed *= 0.98;
 
-		if(!m_progress_updated) return;
-		m_progress_updated = false;
 	}
-
+	
+	if(!m_progress_updated) return;
+	m_progress_updated = false;
 	m_resize_event = false;
 
 	if (m_worker) {

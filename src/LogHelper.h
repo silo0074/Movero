@@ -3,6 +3,7 @@
 
 #include <QFile>
 #include <QString>
+#include <QDebug>
 
 // Define log levels
 enum class LogLevel {
@@ -21,12 +22,12 @@ namespace LogManager {
 // The LOG macro maps to the standard Qt logging functions.
 // The custom message handler (in LogHelper.cpp) will format the output.
 #undef LOG
-#define LOG(level)(											\
-	(level == LogLevel::DEBUG)   ? qDebug().noquote() :     \
-	(level == LogLevel::INFO)    ? qInfo().noquote() :      \
-	(level == LogLevel::WARNING) ? qWarning().noquote() :   \
-	(level == LogLevel::ERROR)   ? qCritical().noquote() :  \
-								   qDebug().noquote()       \
+#define LOG(level) ( \
+	(level == LogLevel::DEBUG)   ? QMessageLogger(__FILE__, __LINE__, Q_FUNC_INFO).debug().noquote() :     \
+	(level == LogLevel::INFO)    ? QMessageLogger(__FILE__, __LINE__, Q_FUNC_INFO).info().noquote() :      \
+	(level == LogLevel::WARNING) ? QMessageLogger(__FILE__, __LINE__, Q_FUNC_INFO).warning().noquote() :   \
+	(level == LogLevel::ERROR)   ? QMessageLogger(__FILE__, __LINE__, Q_FUNC_INFO).critical().noquote() :  \
+								   QMessageLogger(__FILE__, __LINE__, Q_FUNC_INFO).debug().noquote()       \
 )
 
 /*

@@ -1,14 +1,14 @@
 #!/bin/sh
 set -e
 
-if [ "$1" = "purge" ]; then
+#if [ "$1" = "purge" ]; then
     # "purge" in Debian removes configuration files too
     # Note: This only works for system-wide configs. 
     # To remove user data, you'd need to loop through /home users, 
     # which is generally discouraged in Linux packaging.
     # echo "Purging Movero system-wide cache..."
     # rm -rf /var/cache/movero
-fi
+#fi
 
 # Refresh databases so the app disappears from menus immediately
 update-desktop-database -q /usr/share/applications || true
