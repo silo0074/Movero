@@ -1,0 +1,26 @@
+# Ubuntu Noble (24.04)
+FROM ubuntu:noble
+
+# Prevent interactive prompts during apt install
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build tools and Ubuntu's specific Qt6/xxHash dev packages
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    file \
+    dpkg-dev \
+    qt6-base-dev \
+    qt6-base-private-dev \
+    qt6-declarative-dev \
+    qt6-l10n-tools \
+    qt6-tools-dev \
+    libxxhash-dev \
+    libglvnd-dev \
+    dpkg-dev \
+    imagemagick \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up the workspace
+WORKDIR /build

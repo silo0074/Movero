@@ -59,7 +59,7 @@ void CopyWorker::resolveConflict(ConflictAction action, bool applyToAll, QString
 
 // Generates a unique filename by appending a number (e.g., "file (1).txt") to avoid overwriting.
 static fs::path generateAutoRename(const fs::path &path) {
-	LOG(LogLevel::DEBUG) << "Input:" << path.string();
+	LOG(LogLevel::DEBUG) << "Input:" << QString::fromStdString(path.string());
 	fs::path folder = path.parent_path();
 	QString stem = QString::fromStdString(path.stem().string());
 	QString ext = QString::fromStdString(path.extension().string());
@@ -276,6 +276,11 @@ void CopyWorker::run() {
 
 		for (const auto &srcStr : m_sources) {
 			fs::path srcRoot(srcStr);
+
+			// Strip trailing slash so parent_path() returns the parent dir, not the dir itself.
+			if (!srcRoot.has_filename()) {
+				srcRoot = srcRoot.parent_path();
+			}
 			if (!fs::exists(srcRoot)) {
 				emit errorOccurred({ErrorType::SourceOpenFailed, QString::fromStdString(srcStr)});
 				continue;
@@ -286,28 +291,42 @@ void CopyWorker::run() {
 			if (fs::is_symlink(srcRoot)) {
 				fs::path rel = fs::relative(srcRoot, base);
 				tasks.push_back({srcRoot, fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType), true});
+
 			} else if (fs::is_directory(srcRoot)) {
 				sourceDirs.push_back(srcRoot);
 				fs::path rel = fs::relative(srcRoot, base);
 				fs::path destDir = fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType);
 				tasks.push_back({srcRoot, destDir, true});
 
+				// Use directory_options::follow_directory_symlink if you want to enter symlinked folders,
+				// but usually, for a backup, you want to copy the link itself.
+				// Use recursive_directory_iterator but ensure we look at the link, not the target.
 				for (const auto &entry : fs::recursive_directory_iterator(srcRoot)) {
-					if (m_cancelled)
-						return;
-					if (entry.is_symlink()) {
-						fs::path rel = fs::relative(entry.path(), base);
-						tasks.push_back({entry.path(), fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType), false});
-					} else if (entry.is_directory()) {
-						sourceDirs.push_back(entry.path());
-						fs::path rel = fs::relative(entry.path(), base);
-						fs::path destDir = fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType);
-						tasks.push_back({entry.path(), destDir, false});
+					if (m_cancelled) return;
 
-					} else if (entry.is_regular_file()) {
-						totalBytesRequired += entry.file_size();
-						fs::path rel = fs::relative(entry.path(), base);
-						tasks.push_back({entry.path(), fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType), false});
+					// Get status WITHOUT following symlinks
+					// symlink_status: This ensures that if entryPath is a link, 
+					// the is_symlink check returns true for the link itself, 
+					// rather than checking the properties of the file it points to.
+					fs::file_status stat = entry.symlink_status();
+					fs::path entryPath = entry.path(); // This is the path of the link/file itself
+
+					// Use lexically_relative to prevent the filesystem 
+					// from "jumping" out of symlink folders.
+					fs::path rel = entryPath.lexically_relative(base);
+					fs::path taskDest = fs::path(m_destDir) / getSanitizedRelativePath(rel, fsType);
+					
+					// Ensure the task is only added if the item is one of those three types 
+					// (to avoid trying to copy things like sockets or device files 
+					// which might exist in Linux systems).
+					if (fs::is_symlink(stat)) {
+						tasks.push_back({entryPath, taskDest, false});
+					} else if (fs::is_directory(stat)) {
+						sourceDirs.push_back(entryPath);
+						tasks.push_back({entryPath, taskDest, false});
+					} else if (fs::is_regular_file(stat)) {
+						totalBytesRequired += fs::file_size(entryPath);
+						tasks.push_back({entryPath, taskDest, false});
 					}
 				}
 			} else {
@@ -392,6 +411,10 @@ void CopyWorker::run() {
 		fs::create_directories(task.dest.parent_path());
 
 		bool isSymlink = fs::is_symlink(task.src);
+
+		LOG(LogLevel::DEBUG) << "task.src: " << task.src.string();
+		LOG(LogLevel::DEBUG) << "task.dest: " << task.dest.string();
+		LOG(LogLevel::DEBUG) << "isSymlink: " << isSymlink;
 
 		// Handle Directories
 		if (fs::is_directory(task.src) && !isSymlink) {
@@ -520,7 +543,7 @@ void CopyWorker::run() {
 						times[0] = st.st_atim; // Access time
 						times[1] = st.st_mtim; // Modification time
 						if (utimensat(AT_FDCWD, task.dest.c_str(), times, AT_SYMLINK_NOFOLLOW) != 0) {
-							LOG(LogLevel::WARNING) << "Failed to set symlink timestamp: " << task.dest.string();
+							LOG(LogLevel::WARNING) << "Failed to set symlink timestamp: " << QString::fromStdString(task.dest.string());
 						}
 					}
 				}
@@ -716,7 +739,7 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 			close(fd_out);
 
 		// Delete the partial file
-		LOG(LogLevel::INFO) << "Removing partial file:" << dest.string();
+		LOG(LogLevel::INFO) << "Removing partial file:" << QString::fromStdString(dest.string());
 		LOG(LogLevel::INFO) << "Reason: cancelled =" << m_cancelled
 								<< ", fileSize =" << fileSize << ", totalRead =" << totalRead;
 		try {
@@ -749,7 +772,6 @@ bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffe
 	if (shouldSync && useSyncFileRange && (Config::CHECKSUM_ENABLED || m_mode == Move)) {
 		// Start the write-out (Non-blocking)
 		sync_file_range(fd_out, 0, 0, SYNC_FILE_RANGE_WRITE);
-		LOG(LogLevel::DEBUG) << "---------------------------sync_file_range";
 	}
 
 	// If we are here, the copy phase finished successfully.

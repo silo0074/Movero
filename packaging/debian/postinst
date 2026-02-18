@@ -19,6 +19,12 @@ case "$1" in
         if command -v kbuildsycoca6 >/dev/null 2>&1; then
             kbuildsycoca6 --noincremental > /dev/null 2>&1 || true
         fi
+
+        # Nautilus needs to be "nudged" to see new extensions.
+        # Restart nautilus in the background if it's running.
+        if pgrep -x "nautilus" > /dev/null; then
+            nautilus -q || true
+        fi
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

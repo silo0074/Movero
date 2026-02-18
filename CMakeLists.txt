@@ -61,6 +61,8 @@ set(TS_FILES
     translations/Movero_de.ts
 )
 
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+
 # --- This method doesn't generate the .ts files 
 # but it is the recommended method in Qt6.
 
@@ -82,8 +84,6 @@ qt_add_translations(${PROJECT_NAME}
 # set_source_files_properties(${TS_FILES} PROPERTIES OUTPUT_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/translations")
 # qt6_create_translation(QM_FILES ${CMAKE_CURRENT_SOURCE_DIR} ${TS_FILES})
 # add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${QM_FILES})
-
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
     message(STATUS "Setting DEBUG_ENABLED to 1")
@@ -113,11 +113,16 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 
 # --- CPACK
+# To generate DEB on Opensuse install these
+# sudo zypper install dpkg
+# sudo zypper install dpkg-devel
+
 # sudo make install (Installs on your system)
 # cpack (Creates the .deb and .rpm): run inside debug or release folder
 # cpack -G DEB 
 # or
 # cpack -G RPM
+
 # Verify the content: 
 # For DEB: dpkg -c Movero-1.0.0-Linux.deb
 # For RPM: rpm -qpl Movero-1.0.0-Linux.rpm
@@ -154,6 +159,16 @@ install(FILES assets/dolphin-service-menu.desktop
 		PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
         RENAME ${PROJECT_NAME}-paste.desktop
 )
+# Install the Nautilus extension only for DEB packages
+if(CPACK_GENERATOR MATCHES "DEB")
+    install(FILES "assets/nautilus_extension.py"
+            DESTINATION "share/nautilus-python/extensions"
+            RENAME ${PROJECT_NAME}-paste.py
+    )
+            
+    # Also ensure the dependency is listed so the menu actually works
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, python3-nautilus")
+endif()
 
 # install(FILES "icons/${PROJECT_NAME}-icon.png"
 #         DESTINATION "share/icons/hicolor/48x48/apps"
@@ -168,7 +183,7 @@ install(FILES assets/dolphin-service-menu.desktop
 
 # sudo zypper install ImageMagick  # openSUSE
 # sudo apt install imagemagick      # Ubuntu
-find_program(CONVERT_TOOL magick)
+find_program(CONVERT_TOOL NAMES magick convert)
 
 if(CONVERT_TOOL)
     set(ICON_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/icons/${PROJECT_NAME}-icon.png")
@@ -215,9 +230,12 @@ install(FILES "icons/${PROJECT_NAME}-icon.png"
 set(CPACK_PACKAGE_VENDOR "Liviu Istrate")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A file transfer for Linux with checksum feature.")
-set(CPACK_PACKAGE_CONTACT "istrateliviu24@yahoo.com") # Required for DEB
+set(CPACK_PACKAGE_CONTACT "github.com@silo0074") # Required for DEB
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE") # Optional
-set(CPACK_RPM_CHANGELOG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG")
+set(CPACK_RPM_CHANGELOG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.spec")
+
+set(CPACK_DEBIAN_PACKAGE_RELEASE "1")
+set(CPACK_DEBIAN_PACKAGE_LICENSE "GPL-3.0")
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
     set(CPACK_SYSTEM_NAME "x86_64")
@@ -241,8 +259,19 @@ set(RPM_POSTINST "${CMAKE_CURRENT_SOURCE_DIR}/packaging/postinst_rpm.sh")
 set(RPM_POSTUN   "${CMAKE_CURRENT_SOURCE_DIR}/packaging/postun_rpm.sh")
 
 # DEB Settings
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+# set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+# Manually define the "safe" package names that exist in all versions
+# Note: Ubuntu provides aliases so 'libqt6widgets6' will work even if 'libqt6widgets6t64' is the real file.
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libstdc++6, libqt6widgets6, libqt6gui6, libqt6core6, libqt6dbus6, libxxhash0")
+
 set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${DEB_POSTINST};${DEB_POSTRM}")
+
+# Standardize the DEB architecture name to match Debian's 'amd64'
+if(CPACK_SYSTEM_NAME STREQUAL "x86_64")
+    set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+else()
+    set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE ${CPACK_SYSTEM_NAME})
+endif()
 
 # RPM Settings
 set(CPACK_RPM_PACKAGE_AUTOREQ ON)
@@ -250,6 +279,13 @@ set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${RPM_POSTINST}")
 set(CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${RPM_POSTUN}")
 set(CPACK_RPM_PACKAGE_LICENSE "GPLv3")
 set(CPACK_RPM_PACKAGE_GROUP "Applications/System")
+
+if(CPACK_GENERATOR MATCHES "DEB")
+    # Ubuntu/Debian standard location for copyright/license
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+            DESTINATION "share/doc/${PROJECT_NAME_LOWER}"
+            RENAME "copyright")
+endif()
 
 # CMake uninstall (cmake_uninstall.cmake.in)
 # This file is a template that CMake uses to generate a custom uninstaller 
