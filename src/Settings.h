@@ -33,6 +33,7 @@ class Settings : public QWidget {
 public:
 	explicit Settings(QWidget *parent = nullptr);
 	~Settings();
+	void applyDarkFusion();
 
 private slots:
 	void onStyleChanged(const QString &name);
@@ -45,9 +46,7 @@ private slots:
 private:
 	Ui::Settings *ui;
 	MainWindow *m_previewWindow = nullptr;
-
 	void updatePreview();
-	void applyDarkFusion();
 	bool isSystemDark();
 	void saveSettings();
 };
