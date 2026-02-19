@@ -1,14 +1,15 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QDir>
+#include <QEventLoop>
 #include <QLibraryInfo>
+#include <QLockFile>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QStyleFactory>
+#include <QTimer>
 #include <QTranslator>
 #include <QUrl>
-#include <QLockFile>
-#include <QEventLoop>
-#include <QTimer>
 #include <iostream>
 
 #include "Config.h"
@@ -92,11 +93,22 @@ int main(int argc, char *argv[]) {
 	// Must be done after setOrganizationName
 	Config::load();
 
+	// Set style
+	if (Config::UI_STYLE == "Fusion Dark") {
+		Settings darkFusion;
+		QApplication::setStyle(QStyleFactory::create("Fusion"));
+		darkFusion.applyDarkFusion();
+	} else {
+		QApplication::setStyle(QStyleFactory::create(Config::UI_STYLE));
+		qApp->setPalette(QApplication::style()->standardPalette());
+	}
+
 	LOG(LogLevel::INFO) << APP_NAME << "started.";
 	LOG(LogLevel::INFO) << "Version" << APP_VERSION;
 	if (Config::DRY_RUN) {
 		LOG(LogLevel::INFO) << "Using dry run mode.";
 	}
+	LOG(LogLevel::INFO) << "Style set to:" << Config::UI_STYLE;
 
 	// Set global stylesheet
 	QFile styleFile(":/style.qss");
