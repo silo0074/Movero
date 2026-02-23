@@ -17,11 +17,11 @@
 <br>
 
 # Movero
-<p>A customizable file copier utility that can verify the data integrity using xxHash checksum. It features a graph that displays the speed versus time for an overview of the read/write performance. It is mainly designed for Linux but since it is written in C++ and Qt it can be adapted for Windows if desired.</p>
+<p>On Windows I used to use TerraCopy to ensure the files were correctly copied using checksum but I couldn't find something similar on Linux with features that I wanted so I decided to build one.</p>
+<p>Movero is a customizable file copier utility that can verify the data integrity using xxHash checksum. It features a graph that displays the speed versus time for an overview of the read/write performance. It is mainly designed for Linux but since it is written in C++ and Qt it can be adapted for Windows if desired.</p>
 <p>Since the default file copier in Linux cannot be replaced, the solution is to use a service menu to add a "Paste with Movero" in the right-click menu.</p>
 <p>Completed transfers are highlighted in supported file managers using D-Bus.</p>
 
-<p>On Windows I used to use TerraCopy to ensure the files were correctly copied using checksum but I couldn't find something similar on Linux with features that I wanted so I decided to build one.</p>
 [Youtube video](https://youtu.be/o8qSVmMyA8I)
 
 <br>
