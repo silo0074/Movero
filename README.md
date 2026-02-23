@@ -28,6 +28,8 @@
 
 - **Hybrid Sync Strategy:** Balances data integrity and speed by batch-flushing data to disk (64MB default) to minimize I/O wait times.
 - **Hardware Verification:** Optionally bypasses the Linux Page Cache using `posix_fadvise` and `O_DIRECT` to ensure files are read directly from physical storage during checksum verification.
+- **Generate fill data:** Can generate files with a specific size up to the speficied fill size, useful for testing for a fake flash drive.
+- **Speed graph:** Displays the speed versus time for an overview of the read/write performance.
 
 <br>
 
@@ -53,7 +55,7 @@ It implements several low-level Linux kernel optimizations:
 
 * **Memory Alignment:** Uses `std::aligned_alloc` with 4096-byte boundaries to support `O_DIRECT` I/O.
 * **Zero-Cache Verification:** Implements the `fdatasync` + `POSIX_FADV_DONTNEED` sequence to guarantee that verification hashes are calculated from the platter/NAND, not RAM.
-* **D-Bus Integration:** Communicates with `org.freedesktop.FileManager1` to highlight completed transfers in your native file manager.
+* **D-Bus Integration:** Communicates with `org.freedesktop.FileManager1` to highlight completed transfers in supported file managers.
 
 <br>
 
@@ -61,6 +63,7 @@ It implements several low-level Linux kernel optimizations:
 
 ### Binary Installation (Recommended)
 Download the latest `.deb` (Ubuntu/Debian) or `.rpm` (Fedora/openSUSE) from the [Releases](https://github.com/silo0074/Movero/releases) page.
+**Note on Installation**: Since these packages are not signed by a central authority, your package manager (YaST/DNF) may warn you about a "Signature verification failed." You can safely proceed by choosing "Ignore" or installing via CLI with the `--allow-unsigned-rpm` (zypper) or `--nogpgcheck` (dnf) flag.
 
 **Make it executable**
 ```bash
@@ -70,7 +73,7 @@ Download the latest `.deb` (Ubuntu/Debian) or `.rpm` (Fedora/openSUSE) from the 
 **Sha256 Checksums:**
 You can verify the integrity of the downloaded binary using this command
 ```bash
-sha256sum ./Movero-1.0.0-x86_64.rpm
+sha256sum --check ./Movero-1.0.0-x86_64.rpm.sha256
 ```
 
 **Via Terminal (Safest for unsigned packages):**
@@ -84,10 +87,8 @@ sha256sum ./Movero-1.0.0-x86_64.rpm
 ```
 * **Ubuntu/Debian:**
 ```bash
-  sudo apt install ./Movero-1.0.0-x86_64.deb
+  sudo apt install --nogpgcheck ./Movero-1.0.0-x86_64.deb
 ```
-
-**Note on Installation**: Since these packages are not signed by a central authority, your package manager (YaST/DNF) may warn you about a "Signature verification failed." You can safely proceed by choosing "Ignore" or installing via CLI with the `--allow-unsigned-rpm` (zypper) or `--nogpgcheck` (dnf) flag.
 
 ### System Requirements
 
@@ -111,11 +112,12 @@ The application Settings can be accessed using the start menu.
 
 ### Copier Performance
 
-- **Copy Buffer Size**: Adjustable memory buffer. While it supports up to 1024MB, 8MB is usually optimal for balancing syscall overhead and CPU cache performance.
 - **Force Sync Threshold**: Files larger than this value are forced to disk (fdatasync) to ensure physical integrity. High-speed NVMe users can set this lower for maximum safety. When the data is not flushed to disk using fdatasync, the checksum will most likely be compared against the data in RAM which doesn't reflect the integrity of the final data on the disk. When copying a large amount of small files, the speed will decrease if the checksum is enabled and the file size is larger than this threshold.
 - **Disk Space Safety Margin**: Set a minimum amount of free space (default 50MB) that must remain on the destination drive before the copy starts.
+- **Copy Buffer Size**: Adjustable memory buffer. While it supports up to 1024MB, 8MB is usually optimal for balancing syscall overhead and CPU cache performance.
+- **Dry run mode:** can be used to generate a test file with a specific size or generate fill data where the number of files is automatically calculated based on the desired fill size. Can be used to test for a fake flash drive where the declared size is greater than the available flash memory.
 
-### Speed Graph
+### UI
 
 - **History Size**: Control how many seconds of history are visible on the graph.
 - **Max Speed (MB/s)**: Set the "floor" for the graph's Y-axis. The graph will dynamically scale upward if your transfer speed exceeds this value.
@@ -186,7 +188,6 @@ cpack -G RPM
 <a href="https://www.buymeacoffee.com/liviuistrate" target="_blank">
   <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="60px" width="217px">
 </a>
-
 
 <br>
 <br>
