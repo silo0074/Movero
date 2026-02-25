@@ -91,6 +91,10 @@ sha256sum --check ./Movero-1.0.0-x86_64.rpm.sha256
 ```bash
   sudo apt install --nogpgcheck ./Movero-1.0.0-x86_64.deb
 ```
+* **Arch:**
+```bash
+  sudo pacman -U ./movero-1.0.0-x86_64.pkg.tar.zst
+```
 
 ### System Requirements
 
