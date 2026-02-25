@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(Movero LANGUAGES CXX)
-project(${PROJECT_NAME} VERSION 1.0.0)
+project(${PROJECT_NAME} VERSION 1.0.1)
 # Create a lowercase variable
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
 # Result: PROJECT_NAME_LOWER = "movero"

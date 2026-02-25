@@ -209,7 +209,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Close dummy and show real window
-	// dummy.hide();
+	dummy.hide();
 
 	MainWindow w(options.mode, options.sources, options.dest);
 	w.show();

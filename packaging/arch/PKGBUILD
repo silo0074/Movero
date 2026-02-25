@@ -1,7 +1,7 @@
 # Maintainer: Liviu Istrate <silo0074@github.com> h
 pkgname=movero
 # We initialize with a dummy value; the pkgver() function updates it
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc="A file transfer for Linux with checksum feature"
 arch=('x86_64')
