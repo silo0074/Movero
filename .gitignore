@@ -1,2 +1,9 @@
 .cache/
 build*/
+
+# Arch Linux packaging artifacts
+packaging/arch/src/
+packaging/arch/pkg/
+packaging/arch/build/
+packaging/arch/*.pkg.tar.zst
+packaging/arch/*.log

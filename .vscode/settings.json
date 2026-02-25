@@ -6,10 +6,10 @@
     },
     // Remove "cmake.buildDirectory" as it conflicts with Presets
     "clangd.arguments": [
-        "--compile-commands-dir=build/debug",
         "--background-index",
         "--clang-tidy",
-        "--header-insertion=never"
+        "--header-insertion=never",
+        "--compile-commands-dir=build/release"
     ],
 	"cmake.debugConfig": {
         "args": ["settings"]

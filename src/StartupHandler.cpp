@@ -1,5 +1,6 @@
 #include "StartupHandler.h"
 #include "Config.h"
+#include "LogHelper.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QCoreApplication>
@@ -57,17 +58,25 @@ StartupOptions StartupHandler::parse(const QStringList &args) {
 		const QClipboard *clipboard = QApplication::clipboard();
 		const QMimeData *mimeData = clipboard->mimeData();
 
-		// 	LOG(LogLevel::DEBUG) << "Available Formats:" << mimeData->formats().join(", ").toStdString();
-		// 	LOG(LogLevel::DEBUG) << "Clipboard Text:" << clipboard->text();
+			LOG(LogLevel::DEBUG) << "Available Formats:" << mimeData->formats().join(", ").toStdString();
+			LOG(LogLevel::DEBUG) << "Clipboard Text:" << clipboard->text();
 
 		if (mimeData->hasUrls()) {
+			LOG(LogLevel::DEBUG) << "MIME data has URL";
+
 			QList<QUrl> urlList = mimeData->urls();
 			for (const QUrl &url : urlList) {
+				LOG(LogLevel::DEBUG) << "MIME data URL:" << url;
+
 				if (url.isLocalFile()) {
 					options.sources.push_back(url.toLocalFile().toStdString());
 				}
 			}
+
+
 		} else if (mimeData->hasText()) {
+			LOG(LogLevel::DEBUG) << "MIME data has text";
+
 			QString rawText = mimeData->text();
 			QStringList lines = rawText.split(QRegularExpression("[\r\n]+"), Qt::SkipEmptyParts);
 			for (const QString &line : lines) {
@@ -78,6 +87,8 @@ StartupOptions StartupHandler::parse(const QStringList &args) {
 				if (QFile::exists(trimmed)) {
 					options.sources.push_back(trimmed.toStdString());
 				}
+
+				LOG(LogLevel::DEBUG) << "MIME data text path:" << line;
 			}
 		}
 
