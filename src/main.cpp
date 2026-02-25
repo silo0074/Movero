@@ -89,6 +89,9 @@ int main(int argc, char *argv[]) {
 	app.setApplicationName(APP_NAME);
 	app.setDesktopFileName(QString(APP_NAME));
 
+	LOG(LogLevel::INFO) << APP_NAME << "started.";
+	LOG(LogLevel::INFO) << "Version" << APP_VERSION;
+
 	// Load user settings
 	// Must be done after setOrganizationName
 	Config::load();
@@ -103,8 +106,6 @@ int main(int argc, char *argv[]) {
 		qApp->setPalette(QApplication::style()->standardPalette());
 	}
 
-	LOG(LogLevel::INFO) << APP_NAME << "started.";
-	LOG(LogLevel::INFO) << "Version" << APP_VERSION;
 	if (Config::DRY_RUN) {
 		LOG(LogLevel::INFO) << "Using dry run mode.";
 	}
@@ -146,12 +147,13 @@ int main(int argc, char *argv[]) {
 
 	// Create a dummy invisible window
 	// We use Qt::WindowTransparentForInput and make it tiny
-	// QWidget dummy;
-	// dummy.setWindowOpacity(0.01); // Effectively invisible
-	// dummy.setFixedSize(1, 1);
-	// dummy.show();
-	// dummy.raise();
-	// dummy.activateWindow();
+	// This seems to fix the clipboard empty issue on CachyOS
+	QWidget dummy;
+	dummy.setWindowOpacity(0.01); // Effectively invisible
+	dummy.setFixedSize(1, 1);
+	dummy.show();
+	dummy.raise();
+	dummy.activateWindow();
 
 	// Local event loop to wait for Wayland to "seat" the window
 	QEventLoop loop;

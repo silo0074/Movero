@@ -412,10 +412,6 @@ void CopyWorker::run() {
 
 		bool isSymlink = fs::is_symlink(task.src);
 
-		LOG(LogLevel::DEBUG) << "task.src: " << task.src.string();
-		LOG(LogLevel::DEBUG) << "task.dest: " << task.dest.string();
-		LOG(LogLevel::DEBUG) << "isSymlink: " << isSymlink;
-
 		// Handle Directories
 		if (fs::is_directory(task.src) && !isSymlink) {
 			if (!fs::exists(task.dest)) {
@@ -605,7 +601,7 @@ void CopyWorker::run() {
 		{
 			emit totalProgress(processed, totalFiles);
 			lastProgressTime = now;
-			LOG(LogLevel::DEBUG) << "Emit total progress";
+			// LOG(LogLevel::DEBUG) << "Emit total progress";
 		}
 
 		if (ret_code == false && Config::DRY_RUN) {
@@ -640,7 +636,7 @@ void CopyWorker::run() {
 // Handles the low-level copying of a single file: reading, writing, calculating hash, and syncing to disk.
 bool CopyWorker::copyFile(const fs::path &src, const fs::path &dest, char *buffer, size_t bufferSize, bool isTopLevel, bool isLastFile, FileSystemType fsType) {
 	int fd_in = -1;
-	LOG(LogLevel::DEBUG) << "Copying file:" << src.c_str();
+	// LOG(LogLevel::DEBUG) << "Copying file:" << src.c_str();
 
 	// Open the source file only if not in dry run mode
 	if (!Config::DRY_RUN) {
@@ -880,7 +876,7 @@ bool CopyWorker::verifyFile(
 {
 	// uintmax_t syncThreshold = static_cast<uintmax_t>(Config::SYNC_THRESHOLD_MB) * 1024 * 1024;
 	emit statusChanged(Verifying); // Update UI status
-	LOG(LogLevel::DEBUG) << "Verifying file:" << src.c_str();
+	// LOG(LogLevel::DEBUG) << "Verifying file:" << src.c_str();
 
 	// Hybrid Strategy for Verification:
 	// Small files: Standard buffered read (fast, reads from Cache if we skipped fdatasync).

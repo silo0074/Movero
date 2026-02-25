@@ -1,0 +1,32 @@
+# Maintainer: Liviu Istrate <silo0074@github.com> h
+pkgname=movero
+# We initialize with a dummy value; the pkgver() function updates it
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="A file transfer for Linux with checksum feature"
+arch=('x86_64')
+url="https://github.com/silo0074/Movero"
+license=('GPL3')
+# Based on CMake: Core, Gui, Widgets, DBus, xxhash
+depends=('qt6-base' 'qt6-declarative' 'xxhash')
+# Based on CMake: LinguistTools and ImageMagick [cite: 1, 14]
+makedepends=('cmake' 'qt6-tools' 'imagemagick')
+install=movero.install
+
+pkgver() {
+    # Reference CMakeLists.txt two levels up from the PKGBUILD
+    grep -oP 'project\(.*VERSION \K[0-9.]+' "${startdir}/../../CMakeLists.txt" | head -n1
+}
+
+build() {
+    # Create the build folder inside the current directory (packaging/arch/build)
+    # Point the source (-S) two levels up to the root
+    cmake -B build -S "${startdir}/../.." \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr
+    cmake --build build -j$(nproc)
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install build
+}

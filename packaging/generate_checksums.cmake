@@ -2,7 +2,8 @@
 set(TARGET_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 message(STATUS "Searching for packages in: ${TARGET_DIR}")
 
-file(GLOB PACKAGES "${TARGET_DIR}/*.rpm" "${TARGET_DIR}/*.deb")
+# Add *.pkg.tar.zst to the search pattern
+file(GLOB PACKAGES "${TARGET_DIR}/*.rpm" "${TARGET_DIR}/*.deb" "${TARGET_DIR}/*.pkg.tar.zst")
 
 if(NOT PACKAGES)
     message(FATAL_ERROR "No .rpm or .deb files found in ${TARGET_DIR}. Run cpack first.")
