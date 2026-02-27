@@ -15,6 +15,10 @@
         "args": ["settings"]
     },
 
+    "files.exclude": {
+        "**/.git": false
+    },
+
 	"editor.matchBrackets": "always",
     "editor.guides.bracketPairs": false,
     "editor.guides.bracketPairsHorizontal": false,
