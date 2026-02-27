@@ -1,18 +1,18 @@
 ![C++](https://img.shields.io/badge/C%2B%2B-20%2B-blue?logo=cpp)
 ![Framework](https://img.shields.io/badge/Framework-Qt%206-blue?logo=qt)
 ![CMake](https://img.shields.io/badge/CMake-3.22%2B-blue?logo=cmake)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://codeberg.org/silo0074/Movero/src/branch/main/LICENSE)
-![Release](https://img.shields.io/codeberg/release/silo0074/Movero)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/silo0074/Movero/blob/main/LICENSE)
+![Release](https://img.shields.io/github/v/release/silo0074/Movero?include_prereleases)
 
 
 ## 📖 Table of Contents
-* [🚀 Features](#features)
-* [🛠 Advanced Technical Implementation](#advanced-technical-implementation)
-* [📥 Installation](#installation)
-* [⚙️ Configuration & Settings](#️configuration--settings)
-* [🛠️ Build from Source](#️build-from-source)
-* [❤️ Donations](#️donations)
-* [📄 License](#license)
+* [🚀 Features](#-features)
+* [🛠 Advanced Technical Implementation](#-advanced-technical-implementation)
+* [📥 Installation](#-installation)
+* [⚙️ Configuration & Settings](#️-configuration--settings)
+* [🛠️ Build from Source](#️-build-from-source)
+* [❤️ Donations](#️-donations)
+* [📄 License](#-license)
 
 <br>
 
@@ -37,16 +37,16 @@
 
 | Copying | Paused |
 | :---: | :---: |
-| ![Copying](images/Movero_Copying.png) | ![Paused](images/Movero_Paused.png) |
+| ![Copying](./images/Movero_Copying.png) | ![Paused](./images/Movero_Paused.png) |
 
 <details>
 <summary><b>Click to see more screenshots</b></summary>
 
 #### Settings
-![Settings](images/Movero_Settings_General.png)
+![Settings](./images/Movero_Settings_General.png)
 
 #### Icon
-<img src="icons/Movero-icon.png" alt="Icon" width="100" />
+<img src="./icons/Movero-icon.png" alt="Icon" width="100" />
 </details>
 
 <br>
@@ -64,7 +64,7 @@ It implements several low-level Linux kernel optimizations:
 ## 📥 Installation
 
 ### Binary Installation (Recommended)
-Download the latest `.deb` (Ubuntu/Debian) or `.rpm` (Fedora/openSUSE) from the [Releases](https://codeberg.org/silo0074/Movero/releases) page.
+Download the latest `.deb` (Ubuntu/Debian) or `.rpm` (Fedora/openSUSE) from the [Releases](https://github.com/silo0074/Movero/releases) page.
 **Note on Installation**: Since these packages are not signed by a central authority, your package manager (YaST/DNF) may warn you about a "Signature verification failed." You can safely proceed by choosing "Ignore" or installing via CLI with the `--allow-unsigned-rpm` (zypper) or `--nogpgcheck` (dnf) flag.
 
 **Make it executable**
@@ -150,7 +150,7 @@ qt6-base-dev qt6-base-dev-tools qt6-tools-dev
 Linux (Debian/Ubuntu/Fedora)
 ```bash
 # Clone the repository
-git clone [https://codeberg.org/silo0074/Movero.git](https://codeberg.org/silo0074/Movero.git)
+git clone [https://github.com/silo0074/Movero.git](https://github.com/silo0074/Movero.git)
 cd Movero
 
 # Create a build directory
@@ -200,4 +200,4 @@ cpack -G RPM
 
 
 ## 📄 License
-This project is licensed under the [GPLv3](LICENSE) License.
+This project is licensed under the [GPLv3](https://github.com/silo0074/Movero/blob/main/LICENSE) License.
