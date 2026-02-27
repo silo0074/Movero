@@ -69,7 +69,7 @@ Download the latest `.deb` (Ubuntu/Debian) or `.rpm` (Fedora/openSUSE) from the 
 
 **Make it executable**
 ```bash
-  chmod +x ./Movero-1.0.0-x86_64.rpm
+chmod +x ./Movero-1.0.0-x86_64.rpm
 ```
 
 **Sha256 Checksums:**
@@ -81,19 +81,19 @@ sha256sum --check ./Movero-1.0.0-x86_64.rpm.sha256
 **Via Terminal (Safest for unsigned packages):**
 * **openSUSE:**
 ```bash
-  sudo zypper install --allow-unsigned-rpm ./Movero-1.0.0-x86_64.rpm
+sudo zypper install --allow-unsigned-rpm ./Movero-1.0.0-x86_64.rpm
 ```
 * **Fedora:**
 ```bash
-  sudo dnf install --allow-unsigned-rpm ./Movero-1.0.0-x86_64.rpm
+sudo dnf install --allow-unsigned-rpm ./Movero-1.0.0-x86_64.rpm
 ```
 * **Ubuntu/Debian:**
 ```bash
-  sudo apt install --nogpgcheck ./Movero-1.0.0-x86_64.deb
+sudo apt install ./Movero-1.0.0-x86_64.deb
 ```
 * **Arch:**
 ```bash
-  sudo pacman -U ./movero-1.0.0-x86_64.pkg.tar.zst
+sudo pacman -U ./movero-1.0.0-x86_64.pkg.tar.zst
 ```
 
 ### System Requirements
