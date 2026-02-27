@@ -200,4 +200,4 @@ cpack -G RPM
 
 
 ## 📄 License
-This project is licensed under the [GPLv3](https://github.com/silo0074/Movero/blob/main/LICENSE) License..
+This project is licensed under the [GPLv3](https://github.com/silo0074/Movero/blob/main/LICENSE) License.
