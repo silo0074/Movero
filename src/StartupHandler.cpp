@@ -58,16 +58,14 @@ StartupOptions StartupHandler::parse(const QStringList &args) {
 		const QClipboard *clipboard = QApplication::clipboard();
 		const QMimeData *mimeData = clipboard->mimeData();
 
-			LOG(LogLevel::DEBUG) << "Available Formats:" << mimeData->formats().join(", ").toStdString();
-			LOG(LogLevel::DEBUG) << "Clipboard Text:" << clipboard->text();
+		LOG(LogLevel::DEBUG) << "Available Formats:" << mimeData->formats().join(", ");
+		LOG(LogLevel::DEBUG) << "Clipboard Text:" << clipboard->text();
 
 		if (mimeData->hasUrls()) {
 			LOG(LogLevel::DEBUG) << "MIME data has URL";
 
 			QList<QUrl> urlList = mimeData->urls();
 			for (const QUrl &url : urlList) {
-				LOG(LogLevel::DEBUG) << "MIME data URL:" << url;
-
 				if (url.isLocalFile()) {
 					options.sources.push_back(url.toLocalFile().toStdString());
 				}
@@ -87,8 +85,6 @@ StartupOptions StartupHandler::parse(const QStringList &args) {
 				if (QFile::exists(trimmed)) {
 					options.sources.push_back(trimmed.toStdString());
 				}
-
-				LOG(LogLevel::DEBUG) << "MIME data text path:" << line;
 			}
 		}
 
