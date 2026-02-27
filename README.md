@@ -30,7 +30,7 @@
 
 - **Hybrid Sync Strategy:** Balances data integrity and speed by batch-flushing data to disk (64MB default) to minimize I/O wait times.
 - **Hardware Verification:** Optionally bypasses the Linux Page Cache using `posix_fadvise` and `O_DIRECT` to ensure files are read directly from physical storage during checksum verification.
-- **Generate fill data:** Can generate files with a specific size up to the speficied fill size, useful for testing for a fake flash drive.
+- **Generate fill data:** Can generate files with a specific size up to the specified fill size, useful for testing for a fake flash drive.
 - **Speed graph:** Displays the speed versus time for an overview of the read/write performance.
 
 <br>
@@ -85,7 +85,7 @@ sudo zypper install --allow-unsigned-rpm ./Movero-1.0.0-x86_64.rpm
 ```
 * **Fedora:**
 ```bash
-sudo dnf install --allow-unsigned-rpm ./Movero-1.0.0-x86_64.rpm
+sudo dnf install --nogpgcheck ./Movero-1.0.0-x86_64.rpm
 ```
 * **Ubuntu/Debian:**
 ```bash
