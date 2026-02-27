@@ -2,7 +2,7 @@
 ![Framework](https://img.shields.io/badge/Framework-Qt%206-blue?logo=qt)
 ![CMake](https://img.shields.io/badge/CMake-3.22%2B-blue?logo=cmake)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://codeberg.org/silo0074/Movero/src/branch/main/LICENSE)
-![Release](https://img.shields.io/codeberg/release/silo0074/Movero)
+[![Release](https://img.shields.io/gitea/v/release/silo0074/Movero?gitea_url=https://codeberg.org)](https://codeberg.org/silo0074/Movero/releases)
 
 
 ## 📖 Table of Contents
