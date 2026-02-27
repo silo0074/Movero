@@ -1,0 +1,21 @@
+# Containerfile for CachyOS Builder
+FROM cachyos/cachyos:latest
+
+# Update and install build tools
+# Arch-based systems combine dev headers into the main package (e.g., qt6-base)
+RUN pacman -Syu --noconfirm && pacman -S --noconfirm \
+    base-devel \
+    cmake \
+    git \
+    file \
+    qt6-base \
+    qt6-declarative \
+    qt6-languageserver \
+    qt6-tools \
+    xxhash \
+    libglvnd \
+    imagemagick \
+    && pacman -Scc --noconfirm
+
+# Set up the workspace
+WORKDIR /project

@@ -1,5 +1,6 @@
 .cache/
 build*/
+dist/
 
 # Arch Linux packaging artifacts
 packaging/arch/src/

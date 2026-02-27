@@ -22,8 +22,8 @@ using std::cout;
 using std::endl;
 
 // ------- Requirements to compile
-// OpenSuse is my operating system
-// sudo zypper install CMake gcc-c++ mold lld xxhash-devel \
+// OpenSuse, Fedora
+// sudo zypper install cmake gcc-c++ mold lld xxhash-devel \
 // qt6-base-devel qt6-tools-devel qt6-widgets-devel
 // sudo zypper install qt6-linguist-devel
 
@@ -91,6 +91,9 @@ int main(int argc, char *argv[]) {
 
 	LOG(LogLevel::INFO) << APP_NAME << "started.";
 	LOG(LogLevel::INFO) << "Version" << APP_VERSION;
+	if (isWayland) {
+		LOG(LogLevel::INFO) << "Running on Wayland.";
+	}
 
 	// Load user settings
 	// Must be done after setOrganizationName
@@ -149,11 +152,13 @@ int main(int argc, char *argv[]) {
 	// We use Qt::WindowTransparentForInput and make it tiny
 	// This seems to fix the clipboard empty issue on CachyOS
 	QWidget dummy;
-	dummy.setWindowOpacity(0.01); // Effectively invisible
-	dummy.setFixedSize(1, 1);
-	dummy.show();
-	dummy.raise();
-	dummy.activateWindow();
+	if (isWayland) {
+		dummy.setWindowOpacity(0.01); // Effectively invisible
+		dummy.setFixedSize(1, 1);
+		dummy.show();
+		dummy.raise();
+		dummy.activateWindow();
+	}
 
 	// Local event loop to wait for Wayland to "seat" the window
 	QEventLoop loop;
@@ -162,6 +167,9 @@ int main(int argc, char *argv[]) {
 
 	// Parse arguments and clipboard
 	StartupOptions options = StartupHandler::parse(app.arguments());
+
+	// Close dummy window BEFORE showing settings otherwise it will keep app open
+	if (isWayland) dummy.hide();
 
 	// Display Settings
 	if (options.showSettings) {
@@ -208,8 +216,6 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 
-	// Close dummy and show real window
-	dummy.hide();
 
 	MainWindow w(options.mode, options.sources, options.dest);
 	w.show();
