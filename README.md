@@ -180,13 +180,13 @@ cpack -G RPM
 
 ## 🛠️ Built With
 
-    [C++ 17](https://en.cppreference.com/w/cpp/17) - The core programming language.
+[C++ 17](https://en.cppreference.com/w/cpp/17) - The core programming language.
 
-    [Qt 6](https://www.qt.io/) - Used for the graphical user interface, D-Bus integration, and cross-platform system logic.
+[Qt 6](https://www.qt.io/) - Used for the graphical user interface, D-Bus integration, and cross-platform system logic.
 
-    [xxHash](https://cyan4973.github.io/xxHash/) - Extremely fast non-cryptographic hash algorithm used for checksum verification.
+[xxHash](https://cyan4973.github.io/xxHash/) - Extremely fast non-cryptographic hash algorithm used for checksum verification.
 
-    [CMake](https://cmake.org/) - The build system used for compilation and packaging.
+[CMake](https://cmake.org/) - The build system used for compilation and packaging.
 
 <br>
 
