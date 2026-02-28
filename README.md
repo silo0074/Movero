@@ -37,13 +37,13 @@
 
 | Copying | Paused |
 | :---: | :---: |
-| ![Copying](./images/Movero_Copying.png) | ![Paused](./images/Movero_Paused.png) |
+| ![Copying](images/Movero_Copying.png) | ![Paused](images/Movero_Paused.png) |
 
 <details>
 <summary><b>Click to see more screenshots</b></summary>
 
 #### Settings
-![Settings](./images/Movero_Settings_General.png)
+![Settings](images/Movero_Settings_General.png)
 
 #### Icon
 <img src="./icons/Movero-icon.png" alt="Icon" width="100" />
@@ -78,7 +78,7 @@ You can verify the integrity of the downloaded binary using this command
 sha256sum --check ./Movero-1.0.0-x86_64.rpm.sha256
 ```
 
-**Via Terminal (Safest for unsigned packages):**
+**Via Terminal:**
 * **openSUSE:**
 ```bash
 sudo zypper install --allow-unsigned-rpm ./Movero-1.0.0-x86_64.rpm
@@ -102,6 +102,7 @@ If you are running a minimal installation, ensure you have the following:
 - Qt 6.5+ (Widgets and DBus modules)
 - libxxhash
 - Linux Kernel 5.1+ (Required for sync_file_range used in hybrid sync)
+The package manager should install dependencies automatically.
 
 <br>
 
@@ -150,7 +151,7 @@ qt6-base-dev qt6-base-dev-tools qt6-tools-dev
 Linux (Debian/Ubuntu/Fedora)
 ```bash
 # Clone the repository
-git clone [https://github.com/silo0074/Movero.git](https://github.com/silo0074/Movero.git)
+git clone https://github.com/silo0074/Movero.git
 cd Movero
 
 # Create a build directory
