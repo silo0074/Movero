@@ -7,11 +7,11 @@
 
 ## 📖 Table of Contents
 * [🚀 Features](#features)
-* [🛠 Advanced Technical Implementation](#advanced-technical-implementation)
+* [🛠 Advanced Technical Implementation](#technical-implementation)
 * [📥 Installation](#installation)
-* [⚙️ Configuration & Settings](#️configuration--settings)
-* [🛠️ Build from Source](#️build-from-source)
-* [❤️ Donations](#️donations)
+* [⚙️ Configuration & Settings](#configuration)
+* [🛠️ Build from Source](#build-from-source)
+* [❤️ Donations](#donations)
 * [📄 License](#license)
 
 <br>
@@ -26,7 +26,7 @@
 
 <br>
 
-## 🚀 Features
+## <a id="features"></a>🚀 Features
 
 - **Hybrid Sync Strategy:** Balances data integrity and speed by batch-flushing data to disk (64MB default) to minimize I/O wait times.
 - **Hardware Verification:** Optionally bypasses the Linux Page Cache using `posix_fadvise` and `O_DIRECT` to ensure files are read directly from physical storage during checksum verification.
@@ -51,7 +51,7 @@
 
 <br>
 
-## 🛠 Advanced Technical Implementation
+## <a id="technical-implementation"></a>🛠 Advanced Technical Implementation
 
 It implements several low-level Linux kernel optimizations:
 
@@ -61,7 +61,7 @@ It implements several low-level Linux kernel optimizations:
 
 <br>
 
-## 📥 Installation
+## <a id="installation"></a>📥 Installation
 
 ### Binary Installation (Recommended)
 Download the latest `.deb` (Ubuntu/Debian) or `.rpm` (Fedora/openSUSE) from the [Releases](https://codeberg.org/silo0074/Movero/releases) page.
@@ -78,7 +78,7 @@ You can verify the integrity of the downloaded binary using this command
 sha256sum --check ./Movero-1.0.0-x86_64.rpm.sha256
 ```
 
-**Via Terminal (Safest for unsigned packages):**
+**Via Terminal:**
 * **openSUSE:**
 ```bash
 sudo zypper install --allow-unsigned-rpm ./Movero-1.0.0-x86_64.rpm
@@ -105,7 +105,7 @@ If you are running a minimal installation, ensure you have the following:
 
 <br>
 
-## ⚙️ Configuration & Settings
+## <a id="configuration"></a>⚙️ Configuration & Settings
 
 The application Settings can be accessed using the start menu.
 
@@ -131,7 +131,7 @@ The application Settings can be accessed using the start menu.
 
 <br>
 
-## 🛠️ Build from Source
+## <a id="build-from-source"></a>🛠️ Build from Source
 To compile Movero from source, ensure you have Qt6 (Core, Gui, Widgets, DBus, LinguistTools) and libxxhash installed on your system.
 
 ### Prerequisites
@@ -177,27 +177,26 @@ cpack -G RPM
 
 <br>
 
-## 🛠️ Built With
+## <a id="built-with"></a>🛠️ Built With
 
-    [C++ 17](https://en.cppreference.com/w/cpp/17) - The core programming language.
+[C++ 17](https://en.cppreference.com/w/cpp/17) - The core programming language.
 
-    [Qt 6](https://www.qt.io/) - Used for the graphical user interface, D-Bus integration, and cross-platform system logic.
+[Qt 6](https://www.qt.io/) - Used for the graphical user interface, D-Bus integration, and cross-platform system logic.
 
-    [xxHash](https://cyan4973.github.io/xxHash/) - Extremely fast non-cryptographic hash algorithm used for checksum verification.
+[xxHash](https://cyan4973.github.io/xxHash/) - Extremely fast non-cryptographic hash algorithm used for checksum verification.
 
-    [CMake](https://cmake.org/) - The build system used for compilation and packaging.
+[CMake](https://cmake.org/) - The build system used for compilation and packaging.
 
 <br>
 
-## ❤️ Donations
+## <a id="donations"></a>❤️ Donations
 
 <a href="https://www.buymeacoffee.com/liviuistrate" target="_blank">
   <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="60px" width="217px">
 </a>
 
 <br>
-<br>
 
 
-## 📄 License
+## <a id="license"></a>📄 License
 This project is licensed under the [GPLv3](LICENSE) License.
