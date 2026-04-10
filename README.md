@@ -6,13 +6,13 @@
 
 
 ## 📖 Table of Contents
-* [🚀 Features](#features)
-* [🛠 Advanced Technical Implementation](#technical-implementation)
-* [📥 Installation](#installation)
-* [⚙️ Configuration & Settings](#configuration)
-* [🛠️ Build from Source](#build-from-source)
-* [❤️ Donations](#donations)
-* [📄 License](#license)
+* [Features](#features)
+* [Advanced Technical Implementation](#technical-implementation)
+* [Installation](#installation)
+* [Configuration & Settings](#configuration)
+* [Build from Source](#build-from-source)
+* [Donations](#donations)
+* [License](#license)
 
 <br>
 

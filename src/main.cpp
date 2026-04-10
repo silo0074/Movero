@@ -27,6 +27,9 @@ using std::endl;
 // qt6-base-devel qt6-tools-devel qt6-widgets-devel
 // sudo zypper install qt6-linguist-devel
 
+// Arch
+// sudo pacman -S qt6-tools
+
 // Ubuntu
 // sudo apt install cmake g++ mold lld libxxhash-dev \
 // qt6-base-dev qt6-base-dev-tools
